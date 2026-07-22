@@ -493,7 +493,7 @@
 2716  drive_index_bits
 271F  loc_271F
 2725  drive_block_pos
-2735  config_save
+2735  eeprom_transfer
 273B  loc_273B
 274B  loc_274B
 274F  loc_274F

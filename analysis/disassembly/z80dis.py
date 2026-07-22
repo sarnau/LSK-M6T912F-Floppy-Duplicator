@@ -266,7 +266,7 @@ SYMBOLS = {
     0x20E3:'host_op_begin_run', 0x2134:'bulk_read_bytes', 0x2141:'bulk_validate',
     0x216A:'bulk_read_byte', 0x2196:'bulk_sync_aa55', 0x21A9:'code_loader',
     # --- menus / config ---
-    0x2267:'config_menu', 0x2735:'config_save', 0x2766:'beep',
+    0x2267:'config_menu', 0x2735:'eeprom_transfer', 0x2766:'beep',
     0x1540:'hrd_menu', 0x1555:'special_formats_menu',
     0x2ACB:'eeprom_write', 0x2B3E:'eeprom_io',
     # --- HRD diagnostics + 8253 ---
@@ -844,7 +844,7 @@ COMMENTS = {
     0x27F5: 'print a formatted head-table number cell (BC-preserving lcd_print of patched inline bytes)',
     0x2800: 'render both head rows (0 and 1) of the head parameter table with framing escapes',
     0x281D: 'render one head row (0 or 1) computing per-column LCD cursor positions',
-    0x28F4: 'persist the 2-byte cfg_flags block to serial EEPROM (config_save write mode)',
+    0x28F4: 'persist the 2-byte cfg_flags block to serial EEPROM (eeprom_transfer write mode)',
     0x28F8: 'render media summary from cfg_byte: size, density, S/N and HS/NS/DS; self-patches LCD cursor',
     0x2946: 'print size+density portion of media summary (5.25"/3.5", HD/DD/QD) from cfg_byte bits3,7,6',
     0x298B: 'draw \'Form factor 3.5"\' menu header',

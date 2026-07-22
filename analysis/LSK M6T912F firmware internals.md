@@ -271,9 +271,9 @@ not-proper-image). The **I/O-vector mechanism** (`0x4D89`/`0x4C43`/`0x2766` → 
 identical byte-I/O sites between local keypad, autoloader, and host; opcode 0x0B rewrites all three and
 jumps to the shared run loop.
 
-### Config storage — CAT24C02 I²C EEPROM (`config_save` 0x2735)
+### Config storage — CAT24C02 I²C EEPROM (`eeprom_transfer` 0x2735)
 
-`config_save` is a **bidirectional** block transfer to the CAT24C02 (bit-banged I²C on port `0xF0`),
+`eeprom_transfer` is a **bidirectional** block transfer to the CAT24C02 (bit-banged I²C on port `0xF0`),
 despite the name — the direction is a parameter:
 
 | Reg | Meaning |

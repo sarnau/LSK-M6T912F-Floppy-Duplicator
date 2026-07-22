@@ -434,8 +434,8 @@
       through <code>0x52C9/CB/CD</code>) retargets identical byte-I/O call sites between local keypad,
       autoloader, and host — the 0x0B opcode rewrites all three vectors and jumps to the shared run loop.</p>
 
-    <h4>Config storage — CAT24C02 I²C EEPROM (config_save 0x2735)</h4>
-    <p><code>config_save</code> is a <b>bidirectional</b> block transfer to the CAT24C02 (bit-banged I²C
+    <h4>Config storage — CAT24C02 I²C EEPROM (eeprom_transfer 0x2735)</h4>
+    <p><code>eeprom_transfer</code> is a <b>bidirectional</b> block transfer to the CAT24C02 (bit-banged I²C
       on port <code>0xF0</code>), despite the name — the direction is a parameter:</p>
     <div class="scroll">
       <table>

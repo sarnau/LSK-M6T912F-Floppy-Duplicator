@@ -48,7 +48,7 @@ ver_firmware:
 0066  06 04         LD B,0x04
 0068  0E FC         LD C,0xFC
 006A  AF            XOR A
-006B  CD 35 27      CALL config_save
+006B  CD 35 27      CALL eeprom_transfer
 006E  2A 69 32      LD HL,(cycle_cnt_lo)
 0071  ED 5B 6B 32   LD DE,(cycle_cnt_hi)
 0075  06 08         LD B,0x08
@@ -204,7 +204,7 @@ loc_01EB:
 022B  06 02         LD B,0x02
 022D  3E 01         LD A,0x01
 022F  21 1C 31      LD HL,cfg_flags
-0232  CD 35 27      CALL config_save
+0232  CD 35 27      CALL eeprom_transfer
 
 ; top idle loop: 'Wait for autoloader', poll autoloader + host serial commands
 wait_autoloader_loop:
@@ -301,7 +301,7 @@ loc_0311:
 0331  06 04         LD B,0x04
 0333  0E FC         LD C,0xFC
 0335  3E 01         LD A,0x01
-0337  CD 35 27      CALL config_save
+0337  CD 35 27      CALL eeprom_transfer
 033A  C3 61 01      JP run_entry
 
 ; MANUAL operation mode top level
@@ -361,7 +361,7 @@ dram_bank_cfg:
 03B7  0E 00         LD C,0x00
 03B9  06 04         LD B,0x04
 03BB  AF            XOR A
-03BC  CD 35 27      CALL config_save
+03BC  CD 35 27      CALL eeprom_transfer
 03BF  3A 1E 31      LD A,(drv_active_cfg)
 03C2  D3 9C         OUT (0x9C),A  ; ctrl_latch
 03C4  32 55 31      LD (wprot_mode),A
@@ -1976,7 +1976,7 @@ loc_0F78:
 0F7F  06 04         LD B,0x04
 0F81  0E FC         LD C,0xFC
 0F83  3E 01         LD A,0x01
-0F85  CD 35 27      CALL config_save
+0F85  CD 35 27      CALL eeprom_transfer
 0F88  CD D9 06      CALL pit_reload_c12
 0F8B  CD 09 07      CALL motor_ready_wait
 0F8E  C2 B0 10      JP NZ,loc_10B0
@@ -3184,7 +3184,7 @@ loc_1894:
 189E  06 18         LD B,0x18
 18A0  21 A1 31      LD HL,hrd_hd0
 18A3  3E 00         LD A,0x00
-18A5  CD 35 27      CALL config_save
+18A5  CD 35 27      CALL eeprom_transfer
 18A8  18 0C         JR loc_18B6
 
 loc_18AA:
@@ -4421,7 +4421,7 @@ loc_230A:
 2313  06 03         LD B,0x03
 2315  3E 01         LD A,0x01
 2317  21 1D 31      LD HL,cfg_byte
-231A  CD 35 27      CALL config_save
+231A  CD 35 27      CALL eeprom_transfer
 231D  C9            RET
 
 ; config menu item: toggle data-error-recovery (0x314A=1 enable / 3 disable) via ENTER/EXIT prompt
@@ -4737,7 +4737,7 @@ loc_266C:
 267B  06 18         LD B,0x18
 267D  21 A1 31      LD HL,hrd_hd0
 2680  3E 00         LD A,0x00
-2682  CD 35 27      CALL config_save
+2682  CD 35 27      CALL eeprom_transfer
 2685  CD 59 4C      CALL lcd_print
 2688  0C 75 73 65 72 20 +  DB \f, "user     ...    EXIT", \r, \n, "default  ...   ENTER", 0
 26B4  3E 01         LD A,0x01
@@ -4752,7 +4752,7 @@ loc_266C:
 26C8  06 60         LD B,0x60
 26CA  3E 01         LD A,0x01
 26CC  0E 04         LD C,0x04
-26CE  CD 35 27      CALL config_save
+26CE  CD 35 27      CALL eeprom_transfer
 26D1  E1            POP HL
 
 loc_26D2:
@@ -4781,7 +4781,7 @@ loc_26EE:
 26FA  21 A1 31      LD HL,hrd_hd0
 26FD  06 18         LD B,0x18
 26FF  3E 01         LD A,0x01
-2701  CD 35 27      CALL config_save
+2701  CD 35 27      CALL eeprom_transfer
 2704  C3 B5 22      JP loc_22B5
 
 ; compute pointer to a drive's 0x18-byte record in the table at 0x4B29 (index from unit-select bits)
@@ -4820,7 +4820,7 @@ drive_block_pos:
 2734  C9            RET
 
 ; bidirectional CAT24C02 EEPROM block transfer (NOT save-only). A=direction (0=load EEPROM->RAM, else save RAM->EEPROM); HL=RAM buffer; B=byte count; C=EEPROM word address. Save = one I2C byte-write per byte (INC addr, honours write cycle); load = single sequential read (ACK..NAK+stop). Map: 0x00 config block (cfg_flags/cfg_byte/drv_active_cfg/cfg_batch), 0x04+ Special-format zone tables (24B/slot), 0xFC 32-bit lifetime cycle counter (shown by show_model_cycles)
-config_save:
+eeprom_transfer:
 2735  F5            PUSH AF
 2736  C5            PUSH BC
 2737  B7            OR A
@@ -5155,10 +5155,10 @@ loc_28E9:
 28E9  21 1C 31      LD HL,cfg_flags
 28EC  0E 00         LD C,0x00
 28EE  06 02         LD B,0x02
-28F0  CD 35 27      CALL config_save
+28F0  CD 35 27      CALL eeprom_transfer
 28F3  C9            RET
 
-; persist the 2-byte cfg_flags block to serial EEPROM (config_save write mode)
+; persist the 2-byte cfg_flags block to serial EEPROM (eeprom_transfer write mode)
 save_cfg_block:
 28F4  3E 01         LD A,0x01
 28F6  18 F1         JR loc_28E9
