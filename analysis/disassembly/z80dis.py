@@ -531,6 +531,15 @@ ROW_NOTES = {
     0x3190: 'azimuth     K=696  handler=hrd_disp_azimuth     mask=0x0F',
     0x3195: 'positioner  K=422  handler=hrd_disp_positioner  mask=0x0F',
     0x319A: 'spindle     K=1    handler=show_rpm_suffix      mask=0x0F',
+    # fmt_param_tbl records: packed 19-byte DOS BPB, one per built-in format
+    0x326E: '720K 3.5" DD   1440 sec   9 spt  2h  F9  root 112  spc 2  spf 3',
+    0x3281: '1.44M 3.5" HD  2880 sec  18 spt  2h  F0  root 224  spc 1  spf 9',
+    0x3294: '720K variant   1440 sec   9 spt  2h  F9  root 144  spc 2  spf 3',
+    0x32A7: '1.2M 5.25" HD  2400 sec  15 spt  2h  F9  root 224  spc 1  spf 7',
+    0x32BA: '160K 5.25" SS  320 sec    8 spt  1h  FE  root  64  spc 1  spf 1',
+    0x32CD: '180K 5.25" SS  360 sec    9 spt  1h  FC  root  64  spc 1  spf 2',
+    0x32E0: '320K 5.25" DS  640 sec    8 spt  2h  FF  root 112  spc 2  spf 1',
+    0x32F3: '360K 5.25" DS  720 sec    9 spt  2h  FD  root 112  spc 2  spf 2',
 }
 
 def dump_data(b, start, end):
@@ -1260,14 +1269,8 @@ SYMBOLS.update({
     0x32F3: 'fmt_360k',    # rec7
 })
 COMMENTS.update({
-    0x326E: '8x built-in disk-format BPB records (rec0 = 720K 3.5" DD: F9, 1440 sec, 9 spt, 2 heads, 112 root, 3 sec/FAT). NOTE: table is UNREFERENCED by firmware code',
-    0x3281: '1.44M 3.5" HD: F0, 2880 sec, 18 spt, 2 heads, 224 root, 9 sec/FAT',
-    0x3294: '720K variant: F9, 1440 sec, 9 spt, 2 heads, 144 root, 3 sec/FAT',
-    0x32A7: '1.2M 5.25" HD: F9, 2400 sec, 15 spt, 2 heads, 224 root, 7 sec/FAT',
-    0x32BA: '160K 5.25" SS DD: FE, 320 sec, 8 spt, 1 head, 64 root, 1 sec/FAT',
-    0x32CD: '180K 5.25" SS DD: FC, 360 sec, 9 spt, 1 head, 64 root, 2 sec/FAT',
-    0x32E0: '320K 5.25" DS DD: FF, 640 sec, 8 spt, 2 heads, 112 root, 1 sec/FAT',
-    0x32F3: '360K 5.25" DS DD: FD, 720 sec, 9 spt, 2 heads, 112 root, 2 sec/FAT',
+    # legend for fmt_param_tbl; per-record geometry is in ROW_NOTES (inline)
+    0x326E: 'fmt_param_tbl: 8 built-in disk formats, packed 19-byte BPB { secsz/256, spc, resv:w, nFAT, root:w, total:w, media, spf:w, spt:w, heads:w, hidden:3 }. NOTE: UNREFERENCED by firmware code',
 })
 
 # lcd_print / lcd_byte_out caller-register save slots (16-bit RAM words)

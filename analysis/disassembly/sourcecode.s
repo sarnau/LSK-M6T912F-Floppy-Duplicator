@@ -6527,30 +6527,23 @@ cycle_cnt_lo:
 cycle_cnt_hi:
 326B  00 00 00                                        |...|
 
-; 8x built-in disk-format BPB records (rec0 = 720K 3.5" DD: F9, 1440 sec, 9 spt, 2 heads, 112 root, 3 sec/FAT). NOTE: table is UNREFERENCED by firmware code
+; fmt_param_tbl: 8 built-in disk formats, packed 19-byte BPB { secsz/256, spc, resv:w, nFAT, root:w, total:w, media, spf:w, spt:w, heads:w, hidden:3 }. NOTE: UNREFERENCED by firmware code
 fmt_param_tbl:
-326E  02 02 01 00 02 70 00 A0 05 F9 03 00 09 00 02 00 00 00 00 |.....p.............|
-; 1.44M 3.5" HD: F0, 2880 sec, 18 spt, 2 heads, 224 root, 9 sec/FAT
+326E  02 02 01 00 02 70 00 A0 05 F9 03 00 09 00 02 00 00 00 00 |.....p.............|   ; 720K 3.5" DD   1440 sec   9 spt  2h  F9  root 112  spc 2  spf 3
 fmt_1440k:
-3281  02 01 01 00 02 E0 00 40 0B F0 09 00 12 00 02 00 00 00 00 |.......@...........|
-; 720K variant: F9, 1440 sec, 9 spt, 2 heads, 144 root, 3 sec/FAT
+3281  02 01 01 00 02 E0 00 40 0B F0 09 00 12 00 02 00 00 00 00 |.......@...........|   ; 1.44M 3.5" HD  2880 sec  18 spt  2h  F0  root 224  spc 1  spf 9
 fmt_720k_b:
-3294  02 02 01 00 02 90 00 A0 05 F9 03 00 09 00 02 00 00 00 00 |...................|
-; 1.2M 5.25" HD: F9, 2400 sec, 15 spt, 2 heads, 224 root, 7 sec/FAT
+3294  02 02 01 00 02 90 00 A0 05 F9 03 00 09 00 02 00 00 00 00 |...................|   ; 720K variant   1440 sec   9 spt  2h  F9  root 144  spc 2  spf 3
 fmt_1200k:
-32A7  02 01 01 00 02 E0 00 60 09 F9 07 00 0F 00 02 00 00 00 00 |.......`...........|
-; 160K 5.25" SS DD: FE, 320 sec, 8 spt, 1 head, 64 root, 1 sec/FAT
+32A7  02 01 01 00 02 E0 00 60 09 F9 07 00 0F 00 02 00 00 00 00 |.......`...........|   ; 1.2M 5.25" HD  2400 sec  15 spt  2h  F9  root 224  spc 1  spf 7
 fmt_160k:
-32BA  02 01 01 00 02 40 00 40 01 FE 01 00 08 00 01 00 00 00 00 |.....@.@...........|
-; 180K 5.25" SS DD: FC, 360 sec, 9 spt, 1 head, 64 root, 2 sec/FAT
+32BA  02 01 01 00 02 40 00 40 01 FE 01 00 08 00 01 00 00 00 00 |.....@.@...........|   ; 160K 5.25" SS  320 sec    8 spt  1h  FE  root  64  spc 1  spf 1
 fmt_180k:
-32CD  02 01 01 00 02 40 00 68 01 FC 02 00 09 00 01 00 00 00 00 |.....@.h...........|
-; 320K 5.25" DS DD: FF, 640 sec, 8 spt, 2 heads, 112 root, 1 sec/FAT
+32CD  02 01 01 00 02 40 00 68 01 FC 02 00 09 00 01 00 00 00 00 |.....@.h...........|   ; 180K 5.25" SS  360 sec    9 spt  1h  FC  root  64  spc 1  spf 2
 fmt_320k:
-32E0  02 02 01 00 02 70 00 80 02 FF 01 00 08 00 02 00 00 00 00 |.....p.............|
-; 360K 5.25" DS DD: FD, 720 sec, 9 spt, 2 heads, 112 root, 2 sec/FAT
+32E0  02 02 01 00 02 70 00 80 02 FF 01 00 08 00 02 00 00 00 00 |.....p.............|   ; 320K 5.25" DS  640 sec    8 spt  2h  FF  root 112  spc 2  spf 1
 fmt_360k:
-32F3  02 02 01 00 02 70 00 D0 02 FD 02 00 09 00 02 00 00 00 |.....p............|
+32F3  02 02 01 00 02 70 00 D0 02 FD 02 00 09 00 02 00 00 00 |.....p............|   ; 360K 5.25" DS  720 sec    9 spt  2h  FD  root 112  spc 2  spf 2
 
 fat12_template:
 3305  EB 4E 90 4A 75 6D 62 6F 20 20 20                |.N.Jumbo   |
