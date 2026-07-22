@@ -1,0 +1,18 @@
+# Normalize line endings for text files (checked in as LF)
+* text=auto eol=lf
+
+# --- Binary assets: never diff/merge as text ---
+*.bin  binary
+*.pdf  binary
+*.PDF  binary
+*.jpg  binary
+*.jpeg binary
+*.png  binary
+
+# --- Generated disassembler output ---
+# Keep out of GitHub language stats and collapse in diffs by default.
+analysis/disassembly/full-disassembly.lst linguist-generated=true
+analysis/disassembly/symbols.txt          linguist-generated=true
+
+# --- Standalone analysis pages are documentation, not source ---
+analysis/*.html linguist-documentation=true
