@@ -9,9 +9,10 @@
 *.jpeg binary
 *.png  binary
 
-# --- Generated disassembler output ---
-# Keep out of GitHub language stats and collapse in diffs by default.
-analysis/disassembly/sourcecode.s linguist-generated=true
+# --- Disassembler output ---
+# Count the listing as Assembly in the language stats (force the language so
+# it isn't mis-detected); keep the symbol map out of the stats.
+analysis/disassembly/sourcecode.s linguist-language=Assembly linguist-detectable=true
 analysis/disassembly/symbols.txt  linguist-generated=true
 
 # --- Standalone analysis pages are documentation, not source ---
