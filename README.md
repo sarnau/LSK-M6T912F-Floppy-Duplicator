@@ -33,20 +33,20 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 ## Component datasheets
 
 Every larger chip is identified from the board photo (`PCB Front.jpg`) and its markings; the
-datasheets are included for reference.
+datasheets are included for reference under [`datasheets/`](datasheets/).
 
 | Chip | Role | Ports | Datasheet |
 |---|---|---|---|
-| SMC FDC37C65C ×4 | Floppy-disk controllers (765-compatible) | 00/10/20/30 | `SMC FDC37C65C 2.88MB Floppy Disk Controller.pdf` |
-| NEC µPD8237A | DMA controller (one channel per FDC) | 80–8F | `NEC D8237A DMA Controller.pdf` |
-| NEC µPD8253C-2 | Programmable interval timer (baud + spindle timing) | A0–AC | `NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
-| Zilog Z80 SIO/0 (Z0844006PSC) | Dual-channel serial — autoloader + host | D0–DC | `Zilog Z0844006PSC SIO.pdf` · `Zilog Z80SIO Technica Manual.pdf` |
-| NEC µPD71055 | Parallel interface unit (PPI) — drive/motor lines | 40–70, B0–C6 | `NEC µPD71055 Parallel Interface Unit.pdf` |
-| Zilog Z80 CPU (Z0840006PSC) | Main processor (6 MHz, IM 1) | — | `Zilog Z0840006PSC Z80 CPU.pdf` |
-| Hitachi HD44780 | 2×20 character LCD | E0/E8 | `Hiatchi HD44780 LCD.pdf` |
-| Microchip TC232 | RS-232 line driver | — | `Microchip TC232CPE RS232.PDF` |
-| Alliance AS4C14400 | 1M×4 DRAM (2× 4 MB SIMM = 8 MB image buffer) | bank @ B0 | `AS4C14400 1M×4 RAM.PDF` |
-| Catalyst CAT24C02 | I²C serial EEPROM (256×8) — config + serial-number NVRAM | F0 (bit-banged I²C) | `CAT24C02.pdf` |
+| SMC FDC37C65C ×4 | Floppy-disk controllers (765-compatible) | 00/10/20/30 | `datasheets/SMC FDC37C65C 2.88MB Floppy Disk Controller.pdf` |
+| NEC µPD8237A | DMA controller (one channel per FDC) | 80–8F | `datasheets/NEC D8237A DMA Controller.pdf` |
+| NEC µPD8253C-2 | Programmable interval timer (baud + spindle timing) | A0–AC | `datasheets/NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
+| Zilog Z80 SIO/0 (Z0844006PSC) | Dual-channel serial — autoloader + host | D0–DC | `datasheets/Zilog Z0844006PSC SIO.pdf` · `datasheets/Zilog Z80SIO Technica Manual.pdf` |
+| NEC µPD71055 | Parallel interface unit (PPI) — drive/motor lines | 40–70, B0–C6 | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
+| Zilog Z80 CPU (Z0840006PSC) | Main processor (6 MHz, IM 1) | — | `datasheets/Zilog Z0840006PSC Z80 CPU.pdf` |
+| Hitachi HD44780 | 2×20 character LCD | E0/E8 | `datasheets/Hiatchi HD44780 LCD.pdf` |
+| Microchip TC232 | RS-232 line driver | — | `datasheets/Microchip TC232CPE RS232.PDF` |
+| Alliance AS4C14400 | 1M×4 DRAM (2× 4 MB SIMM = 8 MB image buffer) | bank @ B0 | `datasheets/AS4C14400 1M×4 RAM.PDF` |
+| Catalyst CAT24C02 | I²C serial EEPROM (256×8) — config + serial-number NVRAM | F0 (bit-banged I²C) | `datasheets/CAT24C02.pdf` |
 
 Clocking: 32.000 MHz + 48.000 MHz crystals (the 8253's 2 MHz input is 32 MHz ÷ 16); address decode is
 a GAL20V8B + PALCE20V8H. The full hardware map, port table, and open questions are in the main analysis.

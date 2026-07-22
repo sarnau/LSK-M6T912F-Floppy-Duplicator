@@ -26,16 +26,16 @@ Origin markers in the strings — `Adresa =` (Czech/Slovak/Croatian "address"), 
 
 | Function | Part | Ports | Role | Status | Datasheet |
 |---|---|---|---|---|---|
-| CPU | Zilog Z0840006 (Z80, 6 MHz) | — | Main processor, interrupt mode 1 | [V] | `Zilog Z0840006PSC Z80 CPU.pdf` |
-| Floppy ×4 | SMC FDC37C65C | 00/10/20/30 | Four µPD765-compatible controllers | [V] | `SMC FDC37C65C 2.88MB Floppy Disk Controller.pdf` |
-| DMA | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] | `NEC D8237A DMA Controller.pdf` |
-| Timer | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] | `NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
-| Serial | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] | `Zilog Z0844006PSC SIO.pdf` · `Zilog Z80SIO Technica Manual.pdf` |
-| Parallel I/O | NEC µPD71055 PPI (+ 74HCT373 latches) | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate | [V] | `NEC µPD71055 Parallel Interface Unit.pdf` |
-| Display | HD44780 LCD (2×20) | E0/E8 | Front-panel character display | [V] | `Hiatchi HD44780 LCD.pdf` |
-| Image DRAM | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `AS4C14400 1M×4 RAM.PDF` |
-| Line driver | Microchip TC232 | — | RS-232 level shifting | [R] | `Microchip TC232CPE RS232.PDF` |
-| Config EEPROM | Catalyst CAT24C02 (I²C, 256×8) | F0 (bit-banged I²C) | Non-volatile settings + serial number (write-protect, copy dir, serialization, err-recovery, max-cyl) | [V] | `CAT24C02.pdf` |
+| CPU | Zilog Z0840006 (Z80, 6 MHz) | — | Main processor, interrupt mode 1 | [V] | `datasheets/Zilog Z0840006PSC Z80 CPU.pdf` |
+| Floppy ×4 | SMC FDC37C65C | 00/10/20/30 | Four µPD765-compatible controllers | [V] | `datasheets/SMC FDC37C65C 2.88MB Floppy Disk Controller.pdf` |
+| DMA | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] | `datasheets/NEC D8237A DMA Controller.pdf` |
+| Timer | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] | `datasheets/NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
+| Serial | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] | `datasheets/Zilog Z0844006PSC SIO.pdf` · `datasheets/Zilog Z80SIO Technica Manual.pdf` |
+| Parallel I/O | NEC µPD71055 PPI (+ 74HCT373 latches) | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate | [V] | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
+| Display | HD44780 LCD (2×20) | E0/E8 | Front-panel character display | [V] | `datasheets/Hiatchi HD44780 LCD.pdf` |
+| Image DRAM | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `datasheets/AS4C14400 1M×4 RAM.PDF` |
+| Line driver | Microchip TC232 | — | RS-232 level shifting | [R] | `datasheets/Microchip TC232CPE RS232.PDF` |
+| Config EEPROM | Catalyst CAT24C02 (I²C, 256×8) | F0 (bit-banged I²C) | Non-volatile settings + serial number (write-protect, copy dir, serialization, err-recovery, max-cyl) | [V] | `datasheets/CAT24C02.pdf` |
 
 The parallel I/O is a **single µPD71055 PPI** (there is no Z8420 PIO — an earlier assumption that has
 been corrected); together with discrete 74HCT373 latches it drives the digital motor/select/sense
@@ -414,7 +414,7 @@ One genuine unknown remains (the board photo + datasheets resolved the other two
 
 **Resolved during analysis** (were open in earlier revisions):
 
-- **Serial controller = Zilog Z80 SIO/0** (Z0844006PSC), *not* an 8251 — confirmed by the board photo, the **Zilog Z8440/Z84C40 SIO datasheet** (`Zilog Z0844006PSC SIO.pdf`, in the repo — the `Z0844x06` = 6 MHz Z80 SIO, SIO/0 bonding), **and** the firmware's SIO register model: Tx via RR0 bit 2, Rx via RR0 bit 0, data port = control port with A2 cleared (`RES/SET 2,C`), errors read from RR1 (WR0-pointer=1, mask `0x70`), and `WR0=0x30` error-reset. One SIO carries both channels (A = autoloader `0xD0/D4`, B = host `0xD8/DC`); the 8253 supplies the external clock in ×16 mode (153,846 Hz ÷ 16 ≈ 9600 baud). (§2, §5)
+- **Serial controller = Zilog Z80 SIO/0** (Z0844006PSC), *not* an 8251 — confirmed by the board photo, the **Zilog Z8440/Z84C40 SIO datasheet** (`datasheets/Zilog Z0844006PSC SIO.pdf`, in the repo — the `Z0844x06` = 6 MHz Z80 SIO, SIO/0 bonding), **and** the firmware's SIO register model: Tx via RR0 bit 2, Rx via RR0 bit 0, data port = control port with A2 cleared (`RES/SET 2,C`), errors read from RR1 (WR0-pointer=1, mask `0x70`), and `WR0=0x30` error-reset. One SIO carries both channels (A = autoloader `0xD0/D4`, B = host `0xD8/DC`); the 8253 supplies the external clock in ×16 mode (153,846 Hz ÷ 16 ≈ 9600 baud). (§2, §5)
 - **Parallel I/O = a single µPD71055 PPI** (no Z8420 PIO — an earlier mis-assumption from a spurious datasheet, since removed). The `0x40–0x70`/`B0`/`C6` write-only latches are PPI ports and/or discrete 74HCT373s; the firmware's write-only usage doesn't reveal the exact split, but the parallel-interface chip is the PPI. (§2)
 - **0x9C is an 8-line addressable latch** (decode `data = bit0, select = bits [3:1]`) — line 1 EPROM/RAM map, line 2 write-protect, lines 4/5 per-drive datarate, line 6 static drive/write enable, line 7 FDC result-read strobe (§3). *Residual (still needs the board):* the physical A0–A2 ordering and which board signal each line drives.
 - **0xB0** is a flat 8-bit DRAM bank latch — no drive-select field; drive UNIT/HEAD select is in the FDC `HD/US` command byte. (§5; internals §B)
