@@ -24,17 +24,17 @@ Origin markers in the strings — `Adresa =` (Czech/Slovak/Croatian "address"), 
 
 ## 2. Chipset
 
-| Function | Part | Ports | Role | Status |
-|---|---|---|---|---|
-| CPU | Zilog Z0840006 (Z80, 6 MHz) | — | Main processor, interrupt mode 1 | [V] |
-| Floppy ×4 | SMC FDC37C65C | 00/10/20/30 | Four µPD765-compatible controllers | [V] |
-| DMA | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] |
-| Timer | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] |
-| Serial | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] |
-| Parallel I/O | NEC µPD71055 PPI · Zilog Z8420 PIO | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate — **both chips confirmed on board** | [V] |
-| Display | HD44780 LCD (2×20) | E0/E8 | Front-panel character display | [V] |
-| Image DRAM | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] |
-| Line driver | Microchip TC232 | — | RS-232 level shifting | [R] |
+| Function | Part | Ports | Role | Status | Datasheet |
+|---|---|---|---|---|---|
+| CPU | Zilog Z0840006 (Z80, 6 MHz) | — | Main processor, interrupt mode 1 | [V] | `Zilog Z0840006PSC Z80 CPU.pdf` |
+| Floppy ×4 | SMC FDC37C65C | 00/10/20/30 | Four µPD765-compatible controllers | [V] | `SMC FDC37C65C 2.88MB Floppy Disk Controller.pdf` |
+| DMA | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] | `NEC D8237A DMA Controller.pdf` |
+| Timer | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] | `NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
+| Serial | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] | `Zilog Z0844006PSC SIO.pdf` · `Zilog Z80SIO Technica Manual.pdf` |
+| Parallel I/O | NEC µPD71055 PPI · Zilog Z8420 PIO | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate — **both chips confirmed on board** | [V] | `NEC µPD71055 Parallel Interface Unit.pdf` · `Zilog Z8420 Parallel Input:Output.pdf` |
+| Display | HD44780 LCD (2×20) | E0/E8 | Front-panel character display | [V] | `Hiatchi HD44780 LCD.pdf` |
+| Image DRAM | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `AS4C14400 1M×4 RAM.PDF` |
+| Line driver | Microchip TC232 | — | RS-232 level shifting | [R] | `Microchip TC232CPE RS232.PDF` |
 
 The PPI/PIO pair (µPD71055 + Z8420) is confirmed on the board and drives the digital
 motor/select/sense lines; the traced code uses those ports as plain latches without a distinctive
