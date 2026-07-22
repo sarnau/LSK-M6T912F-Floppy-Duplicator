@@ -1,7 +1,7 @@
 # LSK M6T912F Floppy Duplicator — Firmware Analysis
 
 Reverse-engineering reference for the LSK Data Systems **M6T912F** four-drive gang floppy
-duplicator (Z80, 1996). Source image: `LSK M6T912F D1:97.bin` — 32768 bytes, disassembles as
+duplicator (Z80, 1996). Source image: `LSK M6T912F D1_97.bin` — 32768 bytes, disassembles as
 Z80 at **ORG 0x0000**.
 
 > **Confidence tags** — `[V] Verified` read from the code directly · `[R] Reported` traced,
