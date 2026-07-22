@@ -413,7 +413,7 @@
         <tr><td class="a">0x0A</td><td>host_op_image_dl</td><td class="a">0x1E37</td><td>Image download (0xAA55-framed records into banked DRAM)</td></tr>
         <tr><td class="a">0x0B</td><td>host_op_enter_run</td><td class="a">0x1F9F</td><td>Enter RUN mode — <code>host_mode=0</code>, install I/O vectors 0x52C9/CB/CD, <code>JP 0x0161</code></td></tr>
         <tr><td class="a">0x0C</td><td>host_op_ping</td><td class="a">0x204B</td><td>Ping / no-op ACK (+ status 0x00)</td></tr>
-        <tr><td class="a">0x0D</td><td>host_op_disk_write</td><td class="a">0x1FC6</td><td>Disk-write / format setup (clears <code>image_present</code>)</td></tr>
+        <tr><td class="a">0x0D</td><td>host_op_disk_write</td><td class="a">0x1FC6</td><td>Disk-write / format setup: streams <code>cfg_flags</code>+unit, a <b>write-protect</b> byte (→ <code>0x9C</code> line 2 + <code>wprot_mode</code>, <code>0x200B</code>), <code>err_recovery</code>, then a <b>24-byte per-head zone table</b> → <code>hrd_hd0</code> — a host can <b>define a variable-rate Special format remotely</b>. Echoes each byte; clears <code>image_present</code></td></tr>
         <tr><td class="a">0x0E</td><td>host_op_diag_out</td><td class="a">0x2082</td><td>Host↔autoloader serial <b>bridge</b> (relays until <code>'W'</code>=0x57), diag block via OTIR</td></tr>
         <tr><td class="a">0x0F</td><td>host_op_load_exec</td><td class="a">0x206F</td><td>Load &amp; execute downloaded code (<code>code_loader</code> → 0x7800, image 0x8000, <code>JP (HL)</code>)</td></tr>
       </tbody>

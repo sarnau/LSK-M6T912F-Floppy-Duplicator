@@ -320,7 +320,9 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
     </div>
     <p>Function derivations (firm unless noted): <b>Line 2 = write-protect</b> — the <code>0x24DD</code> handler is
       the front-panel &ldquo;Write protect&rdquo; config screen (<code>get_key</code> → <code>0x04</code>/<code>0x05</code>
-      → store <code>wprot_mode</code> → <code>config_wprotect</code>; string at <code>0x24EF</code>). <b>Lines 4 &amp; 5 =
+      → store <code>wprot_mode</code> → <code>config_wprotect</code>; string at <code>0x24EF</code>). Also driven
+      remotely: host op <code>0x0D</code> (<code>0x200B</code>) writes a host-supplied byte to <code>0x9C</code> and caches it in
+      <code>wprot_mode</code>. <b>Lines 4 &amp; 5 =
       per-drive datarate select</b> — <code>update_ctrl_latch</code> (<code>0x0760</code>) is called with
       <code>A = fdc_rate_a/b</code> (a cylinder-banded rate) and <code>E = 0x08</code> (→ line 4, drive A) /
       <code>0x0A</code> (→ line 5, drive B), setting <code>bit0</code> for rate class 1 and <code>bit2</code> of the
@@ -539,7 +541,7 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
         <tr><td class="a">0x0A</td><td>image download — <code>0xAA55</code>-framed records streamed into banked DRAM</td></tr>
         <tr><td class="a">0x0B</td><td>enter RUN mode — install I/O vectors (0x52C9/CB/CD), <code>JP 0x0161</code></td></tr>
         <tr><td class="a">0x0C</td><td>ping / no-op ACK</td></tr>
-        <tr><td class="a">0x0D</td><td>disk-write / format setup</td></tr>
+        <tr><td class="a">0x0D</td><td>disk-write / format setup — streams write-protect (→0x9C), err_recovery and a 24-byte per-head zone table (host defines a variable-rate format)</td></tr>
         <tr><td class="a">0x0E</td><td>host↔autoloader serial <b>bridge</b> + diagnostic block</td></tr>
         <tr><td class="a">0x0F</td><td>load &amp; execute downloaded code (→ 0x7800)</td></tr>
       </tbody>

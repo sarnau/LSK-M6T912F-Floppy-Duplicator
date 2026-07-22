@@ -3962,7 +3962,7 @@ host_op_enter_run:
 1FC0  22 CD 52      LD (iovec_beep),HL
 1FC3  C3 61 01      JP run_entry
 
-; host op 0x0D: receive format params from host (cfg_flags, unit, geometry, per-head tables), program FDC and build format block; echoes each byte
+; host op 0x0D: receive format params from host (each byte echoed via host_rx_echo) - cfg_flags+unit -> unit_sel; write-protect byte -> OUT 0x9C (line 2) + wprot_mode @0x200B; err_recovery byte; then a 24-byte per-head zone table -> hrd_hd0 (remote variable-rate Special format). Programs FDC + builds format block
 host_op_disk_write:
 1FC6  FE 0D         CP 0x0D
 1FC8  C2 4B 20      JP NZ,host_op_ping

@@ -805,7 +805,7 @@ COMMENTS = {
     0x1E0B: 'host remote-control server dispatcher (opcode table)',
     0x1E37: 'host op 0x0A: download disk image over bulk channel - AA55 sync, validate geometry header, stream tracks into DRAM banks, verify checksum, set image_present',
     0x1F9F: 'host op 0x0B: enter interactive run mode - install iovec callbacks (key/out/annun) and JP run_entry',
-    0x1FC6: 'host op 0x0D: receive format params from host (cfg_flags, unit, geometry, per-head tables), program FDC and build format block; echoes each byte',
+    0x1FC6: 'host op 0x0D: receive format params from host (each byte echoed via host_rx_echo) - cfg_flags+unit -> unit_sel; write-protect byte -> OUT 0x9C (line 2) + wprot_mode @0x200B; err_recovery byte; then a 24-byte per-head zone table -> hrd_hd0 (remote variable-rate Special format). Programs FDC + builds format block',
     0x203E: 'receive one byte from host and echo it back as ack (returns byte in B, NZ on error)',
     0x204B: 'host op 0x0C: ping - ack with 0x58 then 0x00',
     0x205C: 'host op 0x09: clear op_word, ack, run abort_check gate then execute run',

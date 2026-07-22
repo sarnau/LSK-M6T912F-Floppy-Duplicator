@@ -161,7 +161,8 @@ Function derivations (firm unless noted):
 
 - **Line 2 = write-protect.** The `0x24DD` handler is the front-panel **"Write protect"** config screen
   (`get_key` → `0x04`/`0x05` → store `wprot_mode` → `config_wprotect`); the `"Write protect"` string
-  sits at `0x24EF`. `bit0` carries the protect flag.
+  sits at `0x24EF`. `bit0` carries the protect flag. It's also driven remotely: host op `0x0D`
+  (`0x200B`) writes a host-supplied byte to `0x9C` and caches it in `wprot_mode`.
 - **Lines 4 & 5 = per-drive datarate select.** `update_ctrl_latch` (`0x0760`) is called with
   `A = fdc_rate_a`/`fdc_rate_b` (a cylinder-banded rate from `range_table_lookup`) and `E = 0x08`
   (→ line 4, drive A) / `E = 0x0A` (→ line 5, drive B); it `OR 0x01`s `bit0` when the rate class is 1,
@@ -301,7 +302,7 @@ remotely — download an image, format/write, run a pass, even upload and execut
 | `0x0A` | image download — `0xAA55`-framed records streamed into banked DRAM |
 | `0x0B` | enter RUN mode — install I/O vectors (0x52C9/CB/CD), `JP 0x0161` |
 | `0x0C` | ping / no-op ACK |
-| `0x0D` | disk-write / format setup |
+| `0x0D` | disk-write / format setup — streams write-protect (`→0x9C`), `err_recovery` and a 24-byte per-head zone table (host defines a variable-rate format) |
 | `0x0E` | host↔autoloader serial **bridge** + diagnostic block |
 | `0x0F` | load & execute downloaded code (→ 0x7800) |
 

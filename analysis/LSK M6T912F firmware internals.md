@@ -252,7 +252,7 @@ machine just services requests.
 | 0x0A | host_op_image_dl | 0x1E37 | Image download (0xAA55-framed records into banked DRAM) |
 | 0x0B | host_op_enter_run | 0x1F9F | Enter RUN mode — `host_mode=0`, install I/O vectors 0x52C9/CB/CD, `JP 0x0161` |
 | 0x0C | host_op_ping | 0x204B | Ping / no-op ACK (+ status 0x00) |
-| 0x0D | host_op_disk_write | 0x1FC6 | Disk-write / format setup (clears `image_present`) |
+| 0x0D | host_op_disk_write | 0x1FC6 | Disk-write / format setup: streams `cfg_flags`+unit, a **write-protect** byte (→ `0x9C` line 2 + `wprot_mode`, `0x200B`), `err_recovery`, then a **24-byte per-head zone table** → `hrd_hd0` — i.e. a host can **define a variable-rate Special format remotely**. Echoes each byte; clears `image_present` |
 | 0x0E | host_op_diag_out | 0x2082 | Host↔autoloader serial **bridge** (relays until `'W'`=0x57), diag block via OTIR |
 | 0x0F | host_op_load_exec | 0x206F | Load & execute downloaded code (`code_loader` → 0x7800, image 0x8000, `JP (HL)`) |
 
