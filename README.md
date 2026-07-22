@@ -42,7 +42,7 @@ datasheets are included for reference.
 | NEC µPD8253C-2 | Programmable interval timer (baud + spindle timing) | A0–AC | `NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
 | Zilog Z80 SIO/0 (Z0844006PSC) | Dual-channel serial — autoloader + host | D0–DC | `Zilog Z0844006PSC SIO.pdf` · `Zilog Z80SIO Technica Manual.pdf` |
 | NEC µPD71055 | Parallel interface unit (PPI) — drive/motor lines | 40–70, B0–C6 | `NEC µPD71055 Parallel Interface Unit.pdf` |
-| Zilog Z8420 | Z80 PIO — drive/motor lines | 40–70, B0–C6 | `Zilog Z8420 Parallel Input:Output.pdf` |
+| Zilog Z8420 | Z80 PIO — drive/motor lines | 40–70, B0–C6 | `Zilog Z8420 Parallel Input-Output.pdf` |
 | Zilog Z80 CPU (Z0840006PSC) | Main processor (6 MHz, IM 1) | — | `Zilog Z0840006PSC Z80 CPU.pdf` |
 | Hitachi HD44780 | 2×20 character LCD | E0/E8 | `Hiatchi HD44780 LCD.pdf` |
 | Microchip TC232 | RS-232 line driver | — | `Microchip TC232CPE RS232.PDF` |

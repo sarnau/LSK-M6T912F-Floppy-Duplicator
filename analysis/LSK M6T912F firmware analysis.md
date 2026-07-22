@@ -31,7 +31,7 @@ Origin markers in the strings — `Adresa =` (Czech/Slovak/Croatian "address"), 
 | DMA | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] | `NEC D8237A DMA Controller.pdf` |
 | Timer | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] | `NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
 | Serial | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] | `Zilog Z0844006PSC SIO.pdf` · `Zilog Z80SIO Technica Manual.pdf` |
-| Parallel I/O | NEC µPD71055 PPI · Zilog Z8420 PIO | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate — **both chips confirmed on board** | [V] | `NEC µPD71055 Parallel Interface Unit.pdf` · `Zilog Z8420 Parallel Input:Output.pdf` |
+| Parallel I/O | NEC µPD71055 PPI · Zilog Z8420 PIO | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate — **both chips confirmed on board** | [V] | `NEC µPD71055 Parallel Interface Unit.pdf` · `Zilog Z8420 Parallel Input-Output.pdf` |
 | Display | HD44780 LCD (2×20) | E0/E8 | Front-panel character display | [V] | `Hiatchi HD44780 LCD.pdf` |
 | Image DRAM | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `AS4C14400 1M×4 RAM.PDF` |
 | Line driver | Microchip TC232 | — | RS-232 level shifting | [R] | `Microchip TC232CPE RS232.PDF` |
