@@ -165,7 +165,10 @@ Function derivations (firm unless noted):
 - **Lines 4 & 5 = per-drive datarate select.** `update_ctrl_latch` (`0x0760`) is called with
   `A = fdc_rate_a`/`fdc_rate_b` (a cylinder-banded rate from `range_table_lookup`) and `E = 0x08`
   (→ line 4, drive A) / `E = 0x0A` (→ line 5, drive B); it `OR 0x01`s `bit0` when the rate class is 1,
-  and in parallel sets `bit2` of the drive latch (`0x50`/`0x70`, `drv_lat1/3`).
+  and in parallel sets `bit2` of the drive latch (`0x50`/`0x70`, `drv_lat1/3`). The banded rate is read
+  from the **Special-format zone tables** (`fmt_geom_recs`): `range_table_lookup` (`0x092A`, `B=6`)
+  scans a head's 6 `{start-cyl, rate}` zones for the current cylinder and returns the `N/L/H` flag —
+  so N/L/H is confirmed to be **per-cylinder data rate** (variable-rate zoned formatting).
 - **Line 6 = a static enable, *not* precompensation.** Its data bit is `bit0` of `drv_active_cfg` — a
   **hardcoded constant `0x2D`** (written once at `0x01B7`, never config-changed). Every consumer uses
   only that bit (all do `AND 0x01`, some even force `SET 0,A`), and it is always `1`. The same bit is

@@ -324,7 +324,11 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       per-drive datarate select</b> — <code>update_ctrl_latch</code> (<code>0x0760</code>) is called with
       <code>A = fdc_rate_a/b</code> (a cylinder-banded rate) and <code>E = 0x08</code> (→ line 4, drive A) /
       <code>0x0A</code> (→ line 5, drive B), setting <code>bit0</code> for rate class 1 and <code>bit2</code> of the
-      drive latch (<code>0x50</code>/<code>0x70</code>) in parallel. <b>Line 6 = a static enable, <em>not</em>
+      drive latch (<code>0x50</code>/<code>0x70</code>) in parallel. The banded rate is read from the
+      <b>Special-format zone tables</b> (<code>fmt_geom_recs</code>): <code>range_table_lookup</code>
+      (<code>0x092A</code>, <code>B=6</code>) scans a head's 6 <code>{start-cyl, rate}</code> zones for the
+      current cylinder and returns the <code>N/L/H</code> flag — confirming <code>N/L/H</code> is
+      <b>per-cylinder data rate</b> (variable-rate zoned formatting). <b>Line 6 = a static enable, <em>not</em>
       precompensation</b> — its data bit is <code>bit0</code> of <code>drv_active_cfg</code>, a <b>hardcoded constant
       <code>0x2D</code></b> (written once at <code>0x01B7</code>, never config-changed); every consumer uses only
       that bit (all do <code>AND 0x01</code>, some force <code>SET 0,A</code>) and it is always <code>1</code>. The

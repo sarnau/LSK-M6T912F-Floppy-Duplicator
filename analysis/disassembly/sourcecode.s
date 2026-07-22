@@ -4862,7 +4862,7 @@ beep:
 2766  2A CD 52      LD HL,(iovec_beep)
 2769  E9            JP (HL)
 
-; BC-preserving wrapper to edit the two-head zone table (per head: 6 entries { cyl : low byte, rate flag : high byte 0/1/2 = N/L/H })
+; BC-preserving wrapper to edit the two-head data-rate zone table (per head: 6 entries { start cyl : low byte, data-rate : high byte 0/1/2 = N/L/H }; consumed by range_table_lookup @0x092A -> fdc_rate_a/b)
 hrd_head_edit:
 276A  C5            PUSH BC
 276B  CD 00 28      CALL hrd_edit_head_pair
@@ -10270,7 +10270,7 @@ drive_blk_b:
 dma_ptr_save:
 4B21  00 00 00 00 00 00 00 00                         |........|
 
-; fmt_geom_recs: "Special format" per-head zone tables (default set). 4 formats x 2 records (.a=head0, .b=head1); each record = 6 zone entries { cyl : low byte, rate flag : high byte, 0/1/2 = N/L/H } rendered as cyl/flag by the head-pair editor (hrd_row_head0/1). Selected via drive_index_bits (cfg_byte / format_desc), copied to the 0x31A1 working block and edited by hrd_edit_head_pair. Read-only defaults
+; fmt_geom_recs: "Special format" per-head data-rate zone tables (default set) = variable-rate zoned formatting. 4 formats x 2 records (.a=head0, .b=head1); each = 6 zone entries { start cyl : low byte, data-rate : high byte, 0/1/2 = N/L/H }. CONFIRMED data-rate: range_table_lookup(cyl) @0x092A scans these 6 bands -> fdc_rate_a/b -> update_ctrl_latch (0x9C datarate lines 4/5 + drv-latch bit2). Copied to 0x31A1, edited by hrd_edit_head_pair. Read-only defaults
 fmt_geom_recs:
 4B29  00 00 21 01 28 00 28 00 28 00 28 00             |..!.(.(.(.(.|   ; fmt0 head0  cyl/rate: 0/N  33/L  40/N  40/N  40/N  40/N
 4B35  00 00 1E 01 28 00 28 00 28 00 28 00             |....(.(.(.(.|   ; fmt0 head1  cyl/rate: 0/N  30/L  40/N  40/N  40/N  40/N
