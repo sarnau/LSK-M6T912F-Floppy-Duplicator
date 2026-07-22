@@ -60,14 +60,14 @@ Approximate placement of the major chips on the front side, read from `PCB Front
 | Top-left | 4× SMC FDC37C65C floppy controllers (PLCC) |
 | Top-center | GAL20V8B (address-decode PLD); 74HCT glue logic |
 | Top-right | 32.000 MHz + 48.000 MHz crystals |
-| Center | NEC µPD8253C-2 PIT (under the "KDP-05" EPROM label); MC74HCT138 I/O decoders (U57 + one more); Terra Computer Systems logo |
+| Center | NEC µPD8237A DMA (under the "KDP-05" model/serial sticker); NEC µPD8253C-2 PIT (directly below the DMA); MC74HCT138 I/O decoders (U57 + one more); Terra Computer Systems logo |
 | Bottom-left | NEC µPD71055 PPI (directly above the SIO); Zilog Z80 SIO/0 (Z0844006PSC); Microchip TC232 line driver |
 | Bottom-center | Zilog Z80 CPU (Z0840006PSC); the M6T912F firmware EPROM (windowed, "D1/97"); PALCE20V8H (address-decode PLD) |
 | Right | 2× AS4C14400 DRAM SIMMs (8 MB image buffer); banks of 74HCT373 / 74HCT157 latches |
 
-*Not individually pinned in the front photo:* the NEC µPD8237A DMA and Zilog Z8420 PIO are
-datasheet-confirmed present, but the markings on the remaining 40-pin DIPs weren't legible enough to
-place them with confidence from a single top-side image.
+*Not individually pinned in the front photo:* the Zilog Z8420 PIO is datasheet-confirmed present, but
+its marking on the remaining 40-pin DIP wasn't legible enough to place with confidence from a single
+top-side image.
 
 ## Regenerating the disassembly
 
