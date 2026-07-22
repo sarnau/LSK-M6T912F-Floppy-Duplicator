@@ -835,7 +835,7 @@ COMMENTS = {
     0x2707: "compute pointer to a drive's 0x18-byte record in the table at 0x4B29 (index from unit-select bits)",
     0x2716: 'map unit-select byte bits7,3 to a 0..3 drive index in E',
     0x2725: "compute a drive's record offset (0x18*index + 4), returns low byte in C",
-    0x2735: 'persist config block to serial EEPROM (bit-banged)',
+    0x2735: 'bidirectional CAT24C02 EEPROM block transfer (NOT save-only). A=direction (0=load EEPROM->RAM, else save RAM->EEPROM); HL=RAM buffer; B=byte count; C=EEPROM word address. Save = one I2C byte-write per byte (INC addr, honours write cycle); load = single sequential read (ACK..NAK+stop). Map: 0x00 config block (cfg_flags/cfg_byte/drv_active_cfg/cfg_batch), 0x04+ Special-format zone tables (24B/slot), 0xFC 32-bit lifetime cycle counter (shown by show_model_cycles)',
     0x2766: 'beep via the iovec_beep vector (default buzzer_beep); beep count encodes the alert/error code',
     0x276A: 'BC-preserving wrapper to edit the two-head data-rate zone table (per head: 6 entries { start cyl : low byte, data-rate : high byte 0/1/2 = N/L/H }; consumed by range_table_lookup @0x092A -> fdc_rate_a/b)',
     0x2770: "render head-1 row of the head parameter table (sets prefix '1', buffer 0x31AF)",

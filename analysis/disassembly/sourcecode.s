@@ -4819,7 +4819,7 @@ drive_block_pos:
 2733  4D            LD C,L
 2734  C9            RET
 
-; persist config block to serial EEPROM (bit-banged)
+; bidirectional CAT24C02 EEPROM block transfer (NOT save-only). A=direction (0=load EEPROM->RAM, else save RAM->EEPROM); HL=RAM buffer; B=byte count; C=EEPROM word address. Save = one I2C byte-write per byte (INC addr, honours write cycle); load = single sequential read (ACK..NAK+stop). Map: 0x00 config block (cfg_flags/cfg_byte/drv_active_cfg/cfg_batch), 0x04+ Special-format zone tables (24B/slot), 0xFC 32-bit lifetime cycle counter (shown by show_model_cycles)
 config_save:
 2735  F5            PUSH AF
 2736  C5            PUSH BC

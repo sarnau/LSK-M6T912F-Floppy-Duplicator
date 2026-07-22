@@ -271,6 +271,33 @@ not-proper-image). The **I/O-vector mechanism** (`0x4D89`/`0x4C43`/`0x2766` → 
 identical byte-I/O sites between local keypad, autoloader, and host; opcode 0x0B rewrites all three and
 jumps to the shared run loop.
 
+### Config storage — CAT24C02 I²C EEPROM (`config_save` 0x2735)
+
+`config_save` is a **bidirectional** block transfer to the CAT24C02 (bit-banged I²C on port `0xF0`),
+despite the name — the direction is a parameter:
+
+| Reg | Meaning |
+|---|---|
+| `A` | direction — **0 = load** (EEPROM → RAM), **non-zero = save** (RAM → EEPROM) |
+| `HL` | RAM buffer (destination on load, source on save) |
+| `B` | byte count |
+| `C` | EEPROM word address (0–255) |
+
+*Save* writes one byte per I²C transaction (`eeprom_write` start + device + word-addr, one data byte,
+stop; `INC` address each pass — this honours the per-byte write cycle). *Load* is a single sequential
+read (start, addr, restart, then `B` bytes: ACK each, NAK+stop the last).
+
+**EEPROM (256 bytes) layout, from the call sites:**
+
+| Offset | Bytes | Contents | RAM buffer |
+|---|---|---|---|
+| `0x00` | 4 | Settings block: `cfg_flags`, `cfg_byte`, `drv_active_cfg`, `cfg_batch` (write-protect, copy dir, serialization, err-recovery, max-cyl are packed here) | `0x311C` |
+| `0x04`+ | 96 | The four **Special-format zone tables** (24 B/slot; whole set saved at `0x26CE`, individual slots at computed offsets) | `fmt_geom_recs` / `hrd_hd0` |
+| `0xFC` | 4 | 32-bit **lifetime cycle counter** — total copies made, shown by `show_model_cycles` | `cycle_cnt` (`0x3269`) |
+
+Boot loads the settings block (`0x03BC`) and the cycle counter (`0x006B`); the config menus save
+sub-ranges of `0x00–0x03`; a completed run bumps and re-saves the counter (`0x0337`/`0x0F85`).
+
 ---
 
 *Method: each subsystem traced independently then cross-checked; the 0xB0-vs-0x9C banking correction

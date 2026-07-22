@@ -433,6 +433,36 @@
       <b>I/O-vector mechanism</b> (<code>0x4D89</code>/<code>0x4C43</code>/<code>0x2766</code> dispatch
       through <code>0x52C9/CB/CD</code>) retargets identical byte-I/O call sites between local keypad,
       autoloader, and host — the 0x0B opcode rewrites all three vectors and jumps to the shared run loop.</p>
+
+    <h4>Config storage — CAT24C02 I²C EEPROM (config_save 0x2735)</h4>
+    <p><code>config_save</code> is a <b>bidirectional</b> block transfer to the CAT24C02 (bit-banged I²C
+      on port <code>0xF0</code>), despite the name — the direction is a parameter:</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Reg</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="a">A</td><td>direction — <b>0 = load</b> (EEPROM → RAM), <b>non-zero = save</b> (RAM → EEPROM)</td></tr>
+          <tr><td class="a">HL</td><td>RAM buffer (destination on load, source on save)</td></tr>
+          <tr><td class="a">B</td><td>byte count</td></tr>
+          <tr><td class="a">C</td><td>EEPROM word address (0–255)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><em>Save</em> writes one byte per I²C transaction (start + device + word-addr, one data byte, stop;
+      <code>INC</code> address each pass — honours the per-byte write cycle). <em>Load</em> is a single
+      sequential read (start, addr, restart, then <code>B</code> bytes: ACK each, NAK+stop the last).</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>EEPROM offset</th><th>Bytes</th><th>Contents</th><th>RAM</th></tr></thead>
+        <tbody>
+          <tr><td class="a">0x00</td><td>4</td><td>Settings: <code>cfg_flags</code>, <code>cfg_byte</code>, <code>drv_active_cfg</code>, <code>cfg_batch</code> (write-protect, copy dir, serialization, err-recovery, max-cyl)</td><td class="a">0x311C</td></tr>
+          <tr><td class="a">0x04+</td><td>96</td><td>Four <b>Special-format zone tables</b> (24 B/slot; whole set at 0x26CE, slots at computed offsets)</td><td class="a">fmt_geom_recs</td></tr>
+          <tr><td class="a">0xFC</td><td>4</td><td>32-bit <b>lifetime cycle counter</b> — total copies made, shown by <code>show_model_cycles</code></td><td class="a">cycle_cnt</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Boot loads the settings block (0x03BC) and the counter (0x006B); config menus save sub-ranges of
+      0x00–0x03; a completed run bumps and re-saves the counter (0x0337/0x0F85).</p>
   </section>
 
   <footer>
