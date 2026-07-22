@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LSK M6T912F Firmware Analysis</title>
+<style>
+  :root{
+    --bg:#e7e6e1; --surface:#f6f5f1; --surface-2:#efeee8; --ink:#23252b; --ink-soft:#54575f;
+    --ink-faint:#7d818a; --line:#d2cfc6; --line-strong:#bcb9ae;
+    --amber:#a86412; --amber-soft:#c98a2a; --teal:#256b68; --ok:#3f7d4e; --warn:#9c7620; --err:#b23b3b;
+    --chip-bg:#e5e3da;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --measure:69ch;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#131519; --surface:#1b1e24; --surface-2:#20242b; --ink:#e0e3e8; --ink-soft:#a3a8b2;
+      --ink-faint:#767b85; --line:#2a2e37; --line-strong:#3a3f4a;
+      --amber:#e8a83a; --amber-soft:#c98a2a; --teal:#5cb4b0; --ok:#5fb277; --warn:#d1a23f; --err:#e0645f;
+      --chip-bg:#252932;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#e7e6e1; --surface:#f6f5f1; --surface-2:#efeee8; --ink:#23252b; --ink-soft:#54575f;
+    --ink-faint:#7d818a; --line:#d2cfc6; --line-strong:#bcb9ae;
+    --amber:#a86412; --amber-soft:#c98a2a; --teal:#256b68; --ok:#3f7d4e; --warn:#9c7620; --err:#b23b3b;
+    --chip-bg:#e5e3da;
+  }
+  :root[data-theme="dark"]{
+    --bg:#131519; --surface:#1b1e24; --surface-2:#20242b; --ink:#e0e3e8; --ink-soft:#a3a8b2;
+    --ink-faint:#767b85; --line:#2a2e37; --line-strong:#3a3f4a;
+    --amber:#e8a83a; --amber-soft:#c98a2a; --teal:#5cb4b0; --ok:#5fb277; --warn:#d1a23f; --err:#e0645f;
+    --chip-bg:#252932;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;
+    -webkit-font-smoothing:antialiased;margin:0}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 96px}
+  a{color:var(--teal);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--teal) 35%,transparent)}
+  a:hover{border-bottom-color:var(--teal)}
+  :focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:2px}
+
+  /* ---- masthead ---- */
+  header.mast{border-bottom:2px solid var(--ink);margin-top:40px;padding-bottom:20px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--amber);font-weight:600}
+  h1{font-size:clamp(30px,5vw,46px);line-height:1.04;letter-spacing:-.02em;font-weight:800;
+    margin:.35em 0 .1em;text-wrap:balance}
+  .lede{font-size:18px;color:var(--ink-soft);max-width:var(--measure);margin:.4em 0 0}
+  .specrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .spec{font-family:var(--mono);font-size:12px;background:var(--surface);border:1px solid var(--line);
+    border-radius:3px;padding:5px 9px;color:var(--ink-soft)}
+  .spec b{color:var(--ink);font-weight:600}
+
+  /* ---- sections ---- */
+  section{margin-top:56px;scroll-margin-top:20px}
+  .snum{font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.1em}
+  h2{font-size:25px;letter-spacing:-.01em;font-weight:750;margin:.25em 0 .3em;text-wrap:balance}
+  h3{font-size:16px;font-weight:700;margin:32px 0 8px;letter-spacing:.005em}
+  p{max-width:var(--measure)}
+  .muted{color:var(--ink-soft)}
+  code,.mono{font-family:var(--mono)}
+  p code,li code,td code{font-family:var(--mono);font-size:.9em;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:3px;padding:.5px 5px;color:var(--ink);white-space:nowrap}
+
+  ul.clean{max-width:var(--measure);padding-left:0;list-style:none;margin:12px 0}
+  ul.clean li{position:relative;padding-left:20px;margin:7px 0}
+  ul.clean li::before{content:"";position:absolute;left:2px;top:11px;width:6px;height:6px;
+    background:var(--amber-soft);border-radius:50%}
+
+  /* ---- tables ---- */
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;margin:18px 0;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{background:var(--surface-2);font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-soft);font-weight:600;white-space:nowrap;position:sticky;top:0}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:color-mix(in srgb,var(--amber) 6%,transparent)}
+  td.p{font-family:var(--mono);color:var(--amber);white-space:nowrap;font-weight:600}
+  td .mono,td code{font-size:12.5px}
+  .tnum{font-variant-numeric:tabular-nums}
+
+  /* ---- chips ---- */
+  .chip{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
+    padding:2px 7px;border-radius:100px;border:1px solid;white-space:nowrap;font-weight:600;text-transform:uppercase}
+  .c-ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);
+    background:color-mix(in srgb,var(--ok) 10%,transparent)}
+  .c-unc{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);
+    background:color-mix(in srgb,var(--warn) 10%,transparent)}
+  .c-info{color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,transparent);
+    background:color-mix(in srgb,var(--teal) 10%,transparent)}
+
+  /* ---- memory map ---- */
+  .memmap{margin:22px 0}
+  .memruler{display:flex;font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);
+    justify-content:space-between;margin-bottom:5px}
+  .membar{display:flex;height:64px;border-radius:6px;overflow:hidden;border:1px solid var(--line-strong)}
+  .memseg{display:flex;flex-direction:column;justify-content:center;padding:0 14px;color:#fff;
+    font-size:13px;font-weight:600;position:relative}
+  .memseg small{font-family:var(--mono);font-size:10.5px;opacity:.85;font-weight:400}
+  .seg-ram{background:linear-gradient(160deg,#2f6b68,#245451);flex:1 1 50%}
+  .seg-dram{background:linear-gradient(160deg,#9a6016,#7d4d11);flex:1 1 50%}
+  .memnote{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);margin-top:8px}
+
+  /* ---- callout ---- */
+  .note{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);
+    border-radius:0 6px 6px 0;padding:14px 18px;margin:20px 0;max-width:var(--measure)}
+  .note .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--amber);font-weight:600;display:block;margin-bottom:4px}
+  .note.corr{border-left-color:var(--err)}
+  .note.corr .lbl{color:var(--err)}
+
+  /* ---- block diagram ---- */
+  figure{margin:24px 0}
+  figure svg{width:100%;height:auto;display:block}
+  figcaption{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);margin-top:8px;text-align:center}
+
+  /* ---- menu tree ---- */
+  pre.tree{font-family:var(--mono);font-size:12.5px;line-height:1.65;background:var(--surface);
+    border:1px solid var(--line);border-radius:6px;padding:16px 18px;overflow-x:auto;color:var(--ink-soft)}
+  pre.tree b{color:var(--ink);font-weight:600}
+  pre.tree .amb{color:var(--amber)}
+
+  /* ---- toc ---- */
+  nav.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 22px;
+    margin:28px 0 0;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  nav.toc a{font-size:13.5px;padding:4px 0;border:0;color:var(--ink-soft);display:flex;gap:10px}
+  nav.toc a:hover{color:var(--amber)}
+  nav.toc a span{font-family:var(--mono);color:var(--amber);font-size:12px}
+
+  footer{margin-top:64px;padding-top:22px;border-top:2px solid var(--ink);color:var(--ink-faint);
+    font-size:13px;max-width:var(--measure)}
+  footer .mono{font-size:12px;color:var(--ink-soft)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin:14px 0 0;align-items:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div class="eyebrow">Firmware Teardown · Z80 · 1996</div>
+    <h1>LSK M6T912F Floppy Duplicator</h1>
+    <p class="lede">A complete reverse-engineering of a 32&nbsp;KB EPROM: a four-drive gang floppy
+      duplicator with an optional mechanical autoloader, built by LSK Data Systems. Disassembled,
+      cross-referenced against the board's datasheets, and verified instruction-by-instruction.</p>
+    <div class="specrow">
+      <span class="spec">CPU&nbsp; <b>Zilog Z80</b></span>
+      <span class="spec">ROM&nbsp; <b>32&nbsp;KB · 27C256</b></span>
+      <span class="spec">Build&nbsp; <b>M6T9I2F 961002</b></span>
+      <span class="spec">Assembly&nbsp; <b>ORG 0x0000</b></span>
+      <span class="spec">UI&nbsp; <b>2×20 LCD + 4 keys</b></span>
+      <span class="spec">Drives&nbsp; <b>4× simultaneous</b></span>
+    </div>
+    <div class="legend">
+      <span class="chip c-ok">Verified</span> read from the code directly
+      <span class="chip c-info">Reported</span> traced, consistent
+      <span class="chip c-unc">Uncertain</span> flagged for a hardware check
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Contents">
+    <a href="#overview"><span>01</span> Overview</a>
+    <a href="#chipset"><span>02</span> Chipset</a>
+    <a href="#memory"><span>03</span> Memory architecture</a>
+    <a href="#boot"><span>04</span> Boot sequence</a>
+    <a href="#ports"><span>05</span> I/O port map</a>
+    <a href="#fdc"><span>06</span> Floppy subsystem</a>
+    <a href="#serial"><span>07</span> Serial &amp; protocols</a>
+    <a href="#ui"><span>08</span> UI &amp; features</a>
+    <a href="#config"><span>09</span> Config &amp; provenance</a>
+    <a href="#open"><span>10</span> Open questions</a>
+  </nav>
+
+  <section id="overview">
+    <div class="snum">01</div>
+    <h2>Overview</h2>
+    <p>The device reads one master floppy into a bank of DRAM, then writes and verifies up to
+      four blank floppies at once. It runs standalone from a front-panel menu, drives an optional
+      mechanical <em>autoloader</em> over RS-232, and can be driven by a host PC in a
+      <em>remote-control</em> mode that streams a disk image down a dedicated data channel.</p>
+    <p>The firmware is a single 32&nbsp;KB image. At reset it copies itself into RAM, banks the
+      EPROM out, and runs entirely from RAM — which is what makes field firmware updates
+      (&ldquo;Code loading&rdquo;) possible. Every claim below was checked against a purpose-written
+      Z80 disassembler and the manufacturer datasheets for each chip on the board.</p>
+    <p class="muted">Origin markers in the strings — <code>Adresa =</code> (Czech/Slovak/Croatian
+      for &ldquo;address&rdquo;), <code>controll</code>, <code>hystheresis</code> — point to a
+      Central/Eastern-European developer. Copyright banner: <em>LSK Data Systems 1995</em>.</p>
+  </section>
+
+  <section id="chipset">
+    <div class="snum">02</div>
+    <h2>Chipset</h2>
+    <p>Seven support functions surround the Z80, each confirmed by its programming signature in the
+      code and matched to a datasheet on the bench.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Function</th><th>Part</th><th>Ports</th><th>Role</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>CPU</td><td>Zilog Z0840006 (Z80, 6&nbsp;MHz)</td><td class="p">—</td><td>Main processor, interrupt mode 1</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td>Floppy ×4</td><td>SMC FDC37C65C</td><td class="p">00/10/20/30</td><td>Four independent µPD765-compatible controllers</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td>DMA</td><td>NEC µPD8237A (8237)</td><td class="p">80–8F</td><td>4 channels stream sector data to the FDCs (one per controller)</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td>Timer</td><td>NEC D8253 PIT</td><td class="p">A0–AC</td><td>Baud clock + interval measurement</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td>Serial ×2</td><td>USART (8251-class)</td><td class="p">D0–DC</td><td>Autoloader link + host link</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td>Parallel I/O</td><td>µPD71055 PPI · Z8420 PIO</td><td class="p">40–70, B0–C6</td><td>Drive select, motor, sensors, precomp</td><td><span class="chip c-unc">Uncertain</span></td></tr>
+          <tr><td>Display</td><td>HD44780 LCD (2×20)</td><td class="p">E0</td><td>Front-panel character display</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td>Image DRAM</td><td>2× 4 MB 30-pin SIMM (parity-sim) = 8 MB</td><td class="p">bank @ B0</td><td>Banked disk-image buffer — image banks 0x00–0xFE; bank <b>0xFF = program-RAM mirror</b></td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td>Line driver</td><td>Microchip TC232</td><td class="p">—</td><td>RS-232 level shifting</td><td><span class="chip c-info">Reported</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">The PPI/PIO pair is present per the datasheets and clearly drives the digital
+      motor/select/sense lines, but the traced code uses those ports as plain latches without a
+      distinctive mode-word init, so the exact chip-to-port split isn't pinned from firmware alone.</p>
+  </section>
+
+  <section id="memory">
+    <div class="snum">03</div>
+    <h2>Memory architecture</h2>
+    <p>The 64&nbsp;KB address space splits cleanly in half. Both halves are the <b>same 0xB0-banked
+      DRAM array</b>: the lower half is <b>DRAM bank 0xFF</b> — loaded with the EPROM mirror at boot and
+      then fixed there by <code>OUT 0x9C,0x92</code>, holding the running program; the upper half is a
+      window onto image banks 0x00–0xFE that buffers the disk image.</p>
+
+    <div class="memmap">
+      <div class="memruler"><span>0x0000</span><span>0x8000</span><span>0xFFFF</span></div>
+      <div class="membar">
+        <div class="memseg seg-ram">Program RAM = DRAM bank 0xFF<small>EPROM mirror, mapped low by OUT 0x9C,0x92</small></div>
+        <div class="memseg seg-dram">Banked DRAM window<small>image banks 0x00–0xFE · bank latch @ 0xB0</small></div>
+      </div>
+      <div class="memnote">Variables: 0x3100–0x33FF main state · 0x4A00–0x4BFF per-drive FDC + keypad state blocks · 0x5200–0x52FF system &amp; config (I/O-mode vectors 0x52C9/CB/CD)</div>
+    </div>
+
+    <div class="note">
+      <span class="lbl">Content boundary</span>
+      Real content occupies <b>0x0000–0x52FF</b> (21248 bytes); <b>0x5300–0x7FFF is 100% <code>0xFF</code> fill</b>
+      — unused EPROM copied to RAM by the boot <code>LDIR</code> but never touched.
+    </div>
+
+    <h3>Checksums — end of image</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Bytes</th><th>Value</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td class="p">52F0</td><td class="p">C7</td><td>Firmware self-check reference — verified <code>sum8(0x0100..0x52EF)=0xC7</code>; boot compares at 0x0128, mismatch → &ldquo;CODE TRANSFER ERROR&rdquo;. Computed sum is stored at 0x52EF (0x00 in the static image).</td></tr>
+          <tr><td class="p">52F1</td><td class="p">AA</td><td>Validity magic marker.</td></tr>
+          <tr><td class="p">52FE/FF</td><td class="p">2198</td><td>16-bit end-of-content word, <b>referenced by no instruction</b>; not a CRC-16 or additive sum over the obvious ranges — most likely an external programmer / build checksum, not verified by the firmware.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Is 0x0000–0x7FFF really RAM, not the EPROM?</h3>
+    <p>Yes — the physical part is an EPROM, but at runtime that address range is answered by static
+      RAM. Five independent proofs:</p>
+    <ul class="clean">
+      <li><b>316 store instructions target addresses below 0x8000.</b> You cannot write an EPROM with <code>LD (nnnn),A</code>; the machine's own variables live here.</li>
+      <li><b>The boot checksum stores then reads back.</b> <code>LD (0x52EF),A</code> writes the computed sum; <code>0x0128</code> reads it back and compares to reference byte <code>0x52F0 = 0xC7</code>. Storing a computed value and reading it back only works in RAM.</li>
+      <li><b>The &ldquo;variable&rdquo; regions are zero-filled holes</b> in the image — classic initialized-data + BSS laid into a RAM image (e.g. 0x4A50–0x4AB0 is all <code>00</code>).</li>
+      <li><b>The boot ceremony is pointless otherwise:</b> it <code>LDIR</code>s the image up to RAM and bank-switches before <code>JP 0x0100</code>. In-place EPROM execution would just jump at reset.</li>
+      <li><b>&ldquo;Code loading&rdquo; requires it:</b> field firmware updates over serial can only replace the running image if it sits in writable RAM, guarded by that checksum.</li>
+    </ul>
+    <p>It's the same idea as a PC BIOS shadowing ROM into RAM — except here it's mandatory, not just for speed. The image DRAM and the program RAM are the <b>same banked array</b> — <b>2× 4 MB 30-pin SIMMs = 8 MB</b> (parity-type, but the parity bit is
+<em>simulated</em>/generated rather than checked) — holding the source disk image so a master is read once and
+written to every target. Port <code>0xB0</code> selects which 32 KB bank appears in the 0x8000–0xFFFF window
+(8 MB = <b>256 banks</b>). One bank is reserved: <b>bank 0xFF is the program RAM</b>, so the image buffer is
+banks <b>0x00–0xFE</b> (255 banks ≈ 7.97 MB, enough to cache ≈5× 1.44 MB images). The <code>Test dram: N kB</code> routine
+sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x8000),A; CP (0x8000)</code> — and counting those that read back.</p>
+
+    <h3>Bank 0xFF is the program mirror</h3>
+    <p>The &ldquo;static RAM&rdquo; at 0x0000–0x7FFF is not a separate chip — it is <b>DRAM bank 0xFF</b>,
+      loaded with a copy of the EPROM at boot and then mapped low. Traced byte-for-byte at reset:</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Addr</th><th>Code</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td class="p">000E</td><td class="p">LD A,0xFF; OUT (0xB0),A</td><td>select <b>bank 0xFF</b> in the 0x8000 window</td></tr>
+          <tr><td class="p">0014</td><td class="p">LD BC,0x5FFF; LD HL,0x0022; LD DE,0x8022; LDIR</td><td>copy EPROM 0x0022–0x6021 into bank 0xFF (0x8022+)</td></tr>
+          <tr><td class="p">001F</td><td class="p">JP image_buf+0x22</td><td>run the fresh copy <b>inside bank 0xFF's window</b></td></tr>
+          <tr><td class="p">0022</td><td class="p">LD A,0x92; OUT (0x9C),A</td><td>latch bank 0xFF permanently at 0x0000–0x7FFF, drop EPROM</td></tr>
+          <tr><td class="p">0026</td><td class="p">JP boot_init (0x0100)</td><td>continue from the RAM copy</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Two independent facts confirm bank 0xFF is <em>reserved for code</em>, not an image bank:</p>
+    <ul class="clean">
+      <li><b>The relocation writes there.</b> The <code>LDIR</code> target 0x8022 is the 0x8000 window with <code>0xB0=0xFF</code> already selected, and the next instruction executes from that window — so bank 0xFF <em>is</em> the memory that becomes the program at 0x0000–0x7FFF.</li>
+      <li><b>Every image-bank walk stops before it.</b> The boot DRAM sizing and the per-bank checksum loop (<code>0x5193: INC A; CP 0xFF; RET Z</code>) iterate banks 0x00–0xFE and terminate the instant the bank index reaches 0xFF — bank 0xFF is never sized, checksummed, or used to hold image data.</li>
+    </ul>
+    <p>This is why &ldquo;code loading&rdquo; (field firmware update) can work at all: the running image lives in writable bank-0xFF RAM, so a new image can be streamed into it and re-checksummed in place.</p>
+
+    <div class="note">
+      <span class="lbl">Verified — the mapping is set-once</span>
+      <code>OUT (0x9C),0x92</code> executes exactly once, at boot <code>0x0022</code> (the only other <code>LD A,0x92</code> is <code>0x07EA: LD (fmt_mode),A</code>, a RAM store). <code>OUT (0xB0),0xFF</code> also runs exactly once (<code>0x0010</code>); every later <code>0xB0</code> write loads an <em>image</em> bank (<code>track_bank_a/b</code>, or <code>0xFE</code> scratch), never 0xFF. Neither the 0x9C map bit nor the bank-0xFF selection is ever re-commanded, and runtime writes leave low RAM intact: the copy loop does <code>OUT (0xB0),A</code> then keeps fetching from low RAM while building a ≥0x8000 pointer (<code>0x0E49</code>), and <code>fdc_poll_complete</code> pulses the <em>same</em> port 0x9C (<code>0x0E</code>→6 NOPs→<code>0x0F</code>, <code>0x475E</code>) with the PC running straight through. A plain 8-bit register at 0x9C couldn't survive that (writing <code>0x0E</code> after <code>0x92</code> would clear 0x92's high bits) — so 0x9C is an <b>addressable per-line latch</b> (74259-class): the boot commands the map line once, every runtime write selects a different line, and bank 0xFF stays mapped low for the whole runtime.
+    </div>
+
+    <h3>0x9C latch decode (verified)</h3>
+    <p>The addressable-latch decode is pinned from firmware to <b>data = bit 0, select = bits [3:1]</b>.
+      <em>Bit 0 is data:</em> <code>update_ctrl_latch</code> (<code>0x0760</code>, <code>CP 0x01; OR 0x01</code>)
+      and the <code>0x24DD</code> path (<code>LD A,0x05; XOR 0x01</code> → <code>0x04</code>/<code>0x05</code>)
+      both toggle <em>only</em> bit 0 on a fixed select, and the FDC strobe <code>0x0E</code>→<code>0x0F</code>
+      differs only in bit 0. <em>Select is the low bits, not the high nibble:</em> <code>0x04</code> (write gate)
+      and <code>0x0E</code> (FDC strobe) are distinct runtime functions, so they must occupy different lines —
+      only a bits-[3:1] select separates them (lines 2 vs 7); a high-nibble decode would collide them. The high
+      nibble (<code>0x92</code>'s <code>0x90</code>, <code>0x2D</code>'s <code>0x20</code>) is therefore don't-care.
+      <b>Six distinct lines</b> are observed, all consistent with the decode:</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>sel D3:D1</th><th>line</th><th>function</th><th>values</th><th>data (D0)</th></tr></thead>
+        <tbody>
+          <tr><td class="p">001</td><td class="p">1</td><td><b>EPROM/RAM map</b></td><td class="p">0x92 — boot only</td><td>0 = RAM low, EPROM out</td></tr>
+          <tr><td class="p">010</td><td class="p">2</td><td><b>write-protect</b></td><td class="p">0x04 / 0x05</td><td>protect on / off</td></tr>
+          <tr><td class="p">100</td><td class="p">4</td><td><b>datarate select, drive A</b></td><td class="p">0x08 / 0x09</td><td>rate class (fdc_rate_a)</td></tr>
+          <tr><td class="p">101</td><td class="p">5</td><td><b>datarate select, drive B</b></td><td class="p">0x0A / 0x0B</td><td>rate class (fdc_rate_b)</td></tr>
+          <tr><td class="p">110</td><td class="p">6</td><td>static drive/write enable</td><td class="p">0x2D (boot, bit0=1)</td><td>1 = asserted (permanent)</td></tr>
+          <tr><td class="p">111</td><td class="p">7</td><td><b>FDC result-read strobe</b></td><td class="p">0x0E → 0x0F</td><td>0→1 rising edge</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Function derivations (firm unless noted): <b>Line 2 = write-protect</b> — the <code>0x24DD</code> handler is
+      the front-panel &ldquo;Write protect&rdquo; config screen (<code>get_key</code> → <code>0x04</code>/<code>0x05</code>
+      → store <code>wprot_mode</code> → <code>config_wprotect</code>; string at <code>0x24EF</code>). <b>Lines 4 &amp; 5 =
+      per-drive datarate select</b> — <code>update_ctrl_latch</code> (<code>0x0760</code>) is called with
+      <code>A = fdc_rate_a/b</code> (a cylinder-banded rate) and <code>E = 0x08</code> (→ line 4, drive A) /
+      <code>0x0A</code> (→ line 5, drive B), setting <code>bit0</code> for rate class 1 and <code>bit2</code> of the
+      drive latch (<code>0x50</code>/<code>0x70</code>) in parallel. <b>Line 6 = a static enable, <em>not</em>
+      precompensation</b> — its data bit is <code>bit0</code> of <code>drv_active_cfg</code>, a <b>hardcoded constant
+      <code>0x2D</code></b> (written once at <code>0x01B7</code>, never config-changed); every consumer uses only
+      that bit (all do <code>AND 0x01</code>, some force <code>SET 0,A</code>) and it is always <code>1</code>. The
+      same bit is fanned into the drive-control latches (<code>0x40</code>/<code>0x60</code>, active pattern
+      <code>0x2D</code> vs idle <code>0x0E</code>) and written to 0x9C line 6 once at boot (<code>0x03C2</code>),
+      never cleared — a permanently-asserted global enable. The real write-precompensation is a separate path:
+      <code>fdc_datarate_precomp</code> (<code>0x1141</code>) computes it per-geometry and outputs to FDC port
+      <code>0xC2</code> (<code>fdc_precomp</code>). Line 6's exact physical signal (write-gate / reduced-write-current
+      / drive-enable) isn't determinable from firmware, but its behavior — set-once, held high — is. <em>(The
+      disassembly symbol was renamed from the misleading <code>precomp_val</code> to <code>drv_active_cfg</code> to reflect this.)</em></p>
+    <p>The map line (<code>001</code>) is written by exactly one instruction in the whole image
+      (<code>OUT (0x9C),0x92</code> @ <code>0x0022</code>); no runtime write ever selects it. <b>Not</b> derivable
+      from firmware: the physical A0–A2 ordering (permuting relabels the line numbers but preserves the
+      grouping), which Q-pin drives which board signal, and the meaning of the don't-care high bits — all need the schematic.</p>
+  </section>
+
+  <section id="boot">
+    <div class="snum">04</div>
+    <h2>Boot sequence</h2>
+    <p>A 38-byte stub at 0x0000 runs from EPROM, relocates the program into RAM, then hands off.
+      This is a genuine ordered sequence, so the steps are numbered.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>#</th><th>Addr</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td class="tnum">1</td><td class="p">0000</td><td>Init 8237 DMA (<code>OUT 0x88,0xA0</code> / <code>0x8D,0x8F=0x0F</code>), set <code>SP=0x8000</code>, <b>select bank 0xFF (program-RAM window)</b> via <code>OUT 0xB0/0xC0,0xFF</code></td></tr>
+          <tr><td class="tnum">2</td><td class="p">001D</td><td><code>LDIR</code> copies EPROM 0x0022–0x6021 → <b>bank 0xFF</b> at 0x8022, then <code>JP 0x8022</code> (runs the copy in bank 0xFF's window)</td></tr>
+          <tr><td class="tnum">3</td><td class="p">0022</td><td><code>OUT 0x9C,0x92</code> fixes bank 0xFF at 0x0000–0x7FFF (EPROM drops out; bank decoupled from later <code>0xB0</code> changes) → <code>JP 0x0100</code></td></tr>
+          <tr><td class="tnum">4</td><td class="p">0105</td><td>Checksum the RAM copy (sum 0x0100–0x52EF). Mismatch → <b>&ldquo;CODE TRANSFER ERROR&rdquo;</b>, retry loop</td></tr>
+          <tr><td class="tnum">5</td><td class="p">4DD9</td><td><code>IM 1</code>; program 8253 counter 0 (baud) + counters 1/2; init both USARTs; drain receivers</td></tr>
+          <tr><td class="tnum">6</td><td class="p">03DD</td><td>Size DRAM banks → <b>&ldquo;Test dram: N kB&rdquo;</b></td></tr>
+          <tr><td class="tnum">7</td><td class="p">0432</td><td>Detect FDDs, load format descriptor. Bad config → <b>&ldquo;Unsupported FDD / Run config again&rdquo;</b></td></tr>
+          <tr><td class="tnum">8</td><td class="p">0235</td><td>Enter <b>Autoloader</b> or <b>Manual</b> operating mode</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">Maskable interrupts (IM 1) vector through 0x0038 → <code>JP 0x45DB</code>, the FDC
+      result-phase handler: it reads which controller interrupted (port 0x94) and pulls the 7-byte
+      result phase from each of the four FDCs.</p>
+  </section>
+
+  <section id="ports">
+    <div class="snum">05</div>
+    <h2>I/O port map</h2>
+    <p>Every port below was traced to its access sites. The three low-port assignments that the
+      parallel analysis first disagreed on were each settled by disassembling the actual primitive.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Port(s)</th><th>Chip</th><th>Register / role</th><th>Evidence</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="p">00/01 · 10/11<br>20/21 · 30/31</td><td>4× FDC37C65C</td><td>MSR (base+0) / Data (base+1)</td><td>765 handshake at <code>0x457F</code> (<code>AND 0xC0;CP 0x80</code>) &amp; <code>0x46F1</code> (RQM/DIO)</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">80–8F</td><td>µPD8237A DMA</td><td>ch0–3 addr/count (80–87), cmd/status 88, mode 8B, mask 8A/8E/8F, clear-ff 8C, mclr 8D</td><td>arm <code>dma_arm_channel</code> 0x4401 (bit7 → ch0/1 @0x441B or ch2/3 @0x4408); reset <code>OUT 0x88,0xA0</code></td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">A0/A4/A8</td><td>8253 PIT</td><td>counter 0 / 1 / 2</td><td>ctrl words <code>16/50/90</code> select each counter</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">AC</td><td>8253 PIT</td><td>control register</td><td>c0 mode-3 baud (÷13); c1/c2 mode-2 for RPM/hysteresis timing</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">D0/D4</td><td>USART A</td><td>data / status — autoloader (disk-handling motors + sensors)</td><td>TX <code>BIT 2</code>, RX <code>BIT 0</code>, <code>RES/SET 2,C</code> at <code>0x4E42</code></td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">D8/DC</td><td>USART B</td><td>data / status — host</td><td>same cores, C=0xD8/0xDC</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">E0</td><td>HD44780 LCD</td><td>instruction reg (RS=0), bit7=busy</td><td><code>lcd_init 0x4B99</code>, printer <code>0x4C59</code>, busy-wait <code>0x4C2A</code></td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">E8</td><td>HD44780 LCD</td><td>data reg (RS=1); presence self-test (write 0x55, read back)</td><td><code>lcd_byte_out 0x4C43</code> C=0xE8; probe <code>0x4BCC</code>, readback <code>0x4BDD</code> → headless on mismatch</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">B0</td><td>DRAM bank latch</td><td>image-buffer 32 KB bank select</td><td>DRAM sizing <code>OUT (0xB0),A</code> @0x03EE; per-track bank before every 0x8000 access</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">9C</td><td>control/mode latch</td><td>boot memory-mode (0x92); bulk-channel strobe (0x0E/0x0F); drive/analog (0x04)</td><td><code>OUT 0x9C,0x92</code> at boot; strobe in <code>0x216A</code>; exact bit-map unresolved</td><td><span class="chip c-info">Reported</span></td></tr>
+          <tr><td class="p">90/94</td><td>bulk channel</td><td>image data-in / ready (bit6)</td><td>download path <code>0x216A</code>, <code>0xAA55</code> frame sync</td><td><span class="chip c-info">Reported</span></td></tr>
+          <tr><td class="p">B1/C2/C3</td><td>FDC glue</td><td>data-rate / precomp select</td><td>precomp init <code>0x0980</code> (250/500 kbps)</td><td><span class="chip c-info">Reported</span></td></tr>
+          <tr><td class="p">40/50/60/70<br>B0/C6</td><td>PPI / PIO</td><td>drive select · motor · side</td><td>reset <code>OUT 0x40/0x60,0x0E</code>; DOR builder <code>0x3CD3</code></td><td><span class="chip c-unc">Uncertain</span></td></tr>
+          <tr><td class="p">94/98/F0</td><td>panel + EEPROM</td><td>4 keys · beeper · serial NVRAM</td><td>key scan <code>0x4D0B</code>; key decode <code>0x4590</code>; beeper on <code>0xF0</code>; EEPROM <code>0x2ACB</code></td><td><span class="chip c-info">Reported</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note corr">
+      <span class="lbl">Corrected during analysis</span>
+      The parallel deep-dives initially split three ways on the low ports. Direct disassembly settled
+      each: <b>0x00/10/20/30 are four FDCs</b> (textbook 765 MSR polling), not sensor latches;
+      <b>0xD0–0xDC are two USARTs</b> (they carry the autoloader protocol), not FDC data;
+      <b>0x80–0x8F is the 8237 DMA</b>, not an MMU. The added 8253 datasheet then re-homed
+      <b>0xA0–0xAC from &ldquo;PPI&rdquo; to the timer</b>, which also explains baud generation.
+      Finally, the subsystem drill-downs corrected the memory story: the DRAM image-buffer bank is
+      selected by <b>port 0xB0</b>, not 0x9C — verified in the boot DRAM-sizing loop
+      (<code>OUT (0xB0),A; LD (0x8000),A; CP (0x8000)</code>). 0x9C is a separate control/mode latch.
+    </div>
+  </section>
+
+  <section id="fdc">
+    <div class="snum">06</div>
+    <h2>Floppy subsystem</h2>
+    <p>Four FDC37C65C controllers, one per drive, are commanded by polled PIO but fed their bulk
+      sector data by the 8237 — one DMA channel per controller. To write four disks at once, the
+      firmware arms all four channels against the <em>same</em> track buffer and lets the DMA engines
+      clock it out concurrently.</p>
+
+    <figure>
+      <svg viewBox="0 0 720 240" role="img" aria-label="Parallel write data path">
+        <defs>
+          <style>
+            .bx{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5}
+            .bx2{fill:var(--surface-2);stroke:var(--line-strong);stroke-width:1.5}
+            .tl{fill:var(--ink);font:600 13px var(--sans)}
+            .tm{fill:var(--ink-soft);font:11px var(--mono)}
+            .fl{stroke:var(--amber);stroke-width:1.6;fill:none;marker-end:url(#ar)}
+          </style>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/>
+          </marker>
+        </defs>
+        <rect class="bx2" x="20" y="92" width="150" height="56" rx="6"/>
+        <text class="tl" x="95" y="116" text-anchor="middle">Track buffer</text>
+        <text class="tm" x="95" y="134" text-anchor="middle">DRAM @ 0x8000</text>
+
+        <rect class="bx" x="250" y="92" width="140" height="56" rx="6"/>
+        <text class="tl" x="320" y="116" text-anchor="middle">8237 DMA</text>
+        <text class="tm" x="320" y="134" text-anchor="middle">ch0 · ch1 · ch2 · ch3</text>
+
+        <path class="fl" d="M172 120 L248 120"/>
+
+        <g>
+          <rect class="bx" x="500" y="14" width="196" height="40" rx="6"/>
+          <text class="tl" x="516" y="39">FDC0 → drive 0</text>
+          <rect class="bx" x="500" y="72" width="196" height="40" rx="6"/>
+          <text class="tl" x="516" y="97">FDC1 → drive 1</text>
+          <rect class="bx" x="500" y="130" width="196" height="40" rx="6"/>
+          <text class="tl" x="516" y="155">FDC2 → drive 2</text>
+          <rect class="bx" x="500" y="188" width="196" height="40" rx="6"/>
+          <text class="tl" x="516" y="213">FDC3 → drive 3</text>
+        </g>
+        <path class="fl" d="M392 108 L498 34"/>
+        <path class="fl" d="M392 114 L498 92"/>
+        <path class="fl" d="M392 126 L498 150"/>
+        <path class="fl" d="M392 132 L498 208"/>
+      </svg>
+      <figcaption>Command/result phases: polled PIO per FDC · Data phase: parallel DMA to all four</figcaption>
+    </figure>
+
+    <h3>Command and data primitives</h3>
+    <ul class="clean">
+      <li><b>Write bytes</b> — <code>0x457F</code>: poll MSR (<code>AND 0xC0;CP 0x80</code> = RQM set, DIO clear), then <code>INC C;OUTI</code> to the data register at base+1.</li>
+      <li><b>Read result phase</b> — <code>0x46F1</code>: wait RQM (BIT 7), test DIO (BIT 6), <code>INI</code> each byte; the ISR pulls all four 7-byte result phases.</li>
+      <li><b>DMA arm</b> — <code>0x4401</code>: select channel, clear flip-flop (<code>OUT 0x8C</code>), set mask/mode (<code>0x8A/0x8B</code>), stream address + count.</li>
+      <li><b>Precomp / data rate</b> — <code>0x0980</code>: 250 kbps (DD) or 500 kbps (HD), written through 0xB1/0xC2/0xC3.</li>
+      <li><b>Format</b> — <code>0x1CEC</code>: builds a FAT12 boot sector from a ROM template at 0x3305 (OEM &ldquo;Jumbo&rdquo;, &ldquo;Non system disk&rdquo;) and stamps the <code>0x55AA</code> signature at 0x81FE.</li>
+    </ul>
+
+    <h3>Built-in disk formats</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Media</th><th class="tnum">Capacity</th><th class="tnum">Sec/trk</th><th class="tnum">Cyl</th><th class="tnum">Heads</th><th class="tnum">Rate</th></tr></thead>
+        <tbody>
+          <tr><td>3.5″</td><td class="tnum">720 kB</td><td class="tnum">9</td><td class="tnum">80</td><td class="tnum">2</td><td class="tnum">250k</td></tr>
+          <tr><td>3.5″</td><td class="tnum">1.44 MB</td><td class="tnum">18</td><td class="tnum">80</td><td class="tnum">2</td><td class="tnum">500k</td></tr>
+          <tr><td>5.25″</td><td class="tnum">360 kB</td><td class="tnum">9</td><td class="tnum">40</td><td class="tnum">2</td><td class="tnum">250k</td></tr>
+          <tr><td>5.25″</td><td class="tnum">180 kB</td><td class="tnum">9</td><td class="tnum">40</td><td class="tnum">1</td><td class="tnum">250k</td></tr>
+          <tr><td>5.25″</td><td class="tnum">320 kB</td><td class="tnum">8</td><td class="tnum">40</td><td class="tnum">2</td><td class="tnum">250k</td></tr>
+          <tr><td>5.25″</td><td class="tnum">160 kB</td><td class="tnum">8</td><td class="tnum">40</td><td class="tnum">1</td><td class="tnum">250k</td></tr>
+          <tr><td>5.25″</td><td class="tnum">720 kB</td><td class="tnum">9</td><td class="tnum">80</td><td class="tnum">2</td><td class="tnum">250k</td></tr>
+          <tr><td>5.25″</td><td class="tnum">1.2 MB</td><td class="tnum">15</td><td class="tnum">80</td><td class="tnum">2</td><td class="tnum">500k</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">All 512 bytes/sector. Plus 16 user &ldquo;Special formats&rdquo; and named
+      models 528-400 / 526-400 / 325-400. The 2.88 MB (ED) capability of the FDC37C65C part is
+      present in silicon but no ED format ships in this table.</p>
+  </section>
+
+  <section id="serial">
+    <div class="snum">07</div>
+    <h2>Serial &amp; protocols</h2>
+    <p>Two independent USART channels, both 9600 8N1, fully polled (no interrupt-driven ring
+      buffers). Channel A talks to the autoloader; channel B is the host command link. A third,
+      separate channel (ports 0x90/0x94/0x9C, <code>0xAA55</code>-framed) carries bulk image data.</p>
+
+    <h3>Autoloader — the machine is the client (disk-handling mechanism)</h3>
+    <p>The main board does <b>not</b> drive the insert/eject motors directly. The autoloader is a
+      separate mechanical unit with its own controller, and channel&nbsp;A (<code>0xD0/0xD4</code>) is the
+      link that <b>commands its motors and reads its sensors</b> — insert, accept, reject, calibrate,
+      and a status byte encoding the mechanical state (hopper empty, disk-in-drive, jams, bin full,
+      eject timeout). It sends single ASCII commands and expects <code>X</code> (ok) / <code>E</code>
+      (error) / <code>?</code> (unknown); dispatcher <code>0x13D9</code> flushes the receiver, sends the
+      byte, checks for <code>'X'</code>.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Cmd</th><th>Meaning</th><th>Cmd</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="p">S</td><td>status (2-byte reply)</td><td class="p">R</td><td>reject</td></tr>
+          <tr><td class="p">C</td><td>calibrate / clear</td><td class="p">O</td><td>print version</td></tr>
+          <tr><td class="p">I</td><td>insert</td><td class="p">V</td><td>cycle count (32-bit)</td></tr>
+          <tr><td class="p">A</td><td>accept</td><td class="p">—</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The status byte is decoded at <code>0x1286</code>: <code>BIT 1</code> gates
+      &ldquo;Hopper not seated&rdquo;; the high nibble selects the message — <span class="mono">0x0→</span>ok,
+      <span class="mono">0x2→</span>hopper empty, <span class="mono">0x8→</span>calibration error,
+      <span class="mono">0x9→</span>eject timeout, <span class="mono">0xA→</span>accept hopper full,
+      <span class="mono">0xC→</span>reject error, <span class="mono">0xD→</span>bad bin full.</p>
+
+    <h3>Host remote control — the machine is the server</h3>
+    <p>The two serial links have <b>opposite roles</b>: on the autoloader link the machine is the
+      <i>client</i> (above); on the host link (<code>0xD8/0xDC</code>) it is the <b>server</b>. Entered
+      via the &ldquo;Remote controll&rdquo; menu, dispatcher <code>host_dispatch</code>
+      (<code>0x1E0B</code>) is a server loop — it shows a blinking <code>.</code> heartbeat, reads a
+      4-byte packet <code>{lead byte (read but unused), opcode, 16-bit LE parameter}</code>, dispatches by opcode, and
+      replies <code>X</code> (0x58 ack) / <code>E</code> (0x45 bad-packet NAK) plus a binary
+      <b>status byte</b> (<code>0x00</code> ok; <code>0x90/0xA0/0xB0</code> = command error / transfer
+      failed / not-proper-image). A host PC can drive the whole duplication cycle remotely.</p>
+    <p><b>Control opcodes</b> (0x09–0x0F):</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Op</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td class="a">0x09</td><td>reset operation word, ACK</td></tr>
+        <tr><td class="a">0x0A</td><td>image download — <code>0xAA55</code>-framed records streamed into banked DRAM</td></tr>
+        <tr><td class="a">0x0B</td><td>enter RUN mode — install I/O vectors (0x52C9/CB/CD), <code>JP 0x0161</code></td></tr>
+        <tr><td class="a">0x0C</td><td>ping / no-op ACK</td></tr>
+        <tr><td class="a">0x0D</td><td>disk-write / format setup</td></tr>
+        <tr><td class="a">0x0E</td><td>host↔autoloader serial <b>bridge</b> + diagnostic block</td></tr>
+        <tr><td class="a">0x0F</td><td>load &amp; execute downloaded code (→ 0x7800)</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Duplication opcodes</b> — every other value falls through to a run, the opcode itself being
+      the mode: <code>0x07</code> = <b>BP</b> duplication; <code>0x01</code>–<code>0x06</code>/<code>0x08</code>
+      = <b>FDD</b> duplication (FWV / WV / Format / Format+V / Write / Verify). No unknown-opcode reject
+      path. Full byte-level table in the internals companion.</p>
+  </section>
+
+  <section id="ui">
+    <div class="snum">08</div>
+    <h2>UI &amp; features</h2>
+    <p>Four front-panel keys — <b>Next</b> (<code>0x08</code>), <b>Previous</b> (<code>0x04</code>),
+      <b>Exit</b> (<code>0x02</code>), <b>Enter</b> (<code>0x01</code>) — plus an audio beeper. Menus run
+      on a generic driver, <code>menu_run</code> (<code>0x522F</code>): each menu is two parallel
+      null-terminated pointer lists (a <em>draw</em> proc and a <em>do</em> proc per item);
+      Next/Previous scroll and redraw, Enter runs the item's action, Exit returns. Two-choice screens
+      put one option per LCD line with an <code>…EXIT</code> / <code>…ENTER</code> hint. Holding a key
+      at power-on enters the Config menu; the beeper gives key-click and error/alert tones (port <code>0xF0</code>).</p>
+
+    <h3>Display — Hitachi HD44780 (2-line)</h3>
+    <p>Port <b><code>0xE0</code> = instruction register</b> (RS=0, write command / read busy on bit 7),
+      <b><code>0xE8</code> = data register</b> (RS=1, write character; <code>IN (0xE8)</code> also reads
+      board-ID <code>0x55</code>). All writes go through <code>lcd_byte_out</code> (<code>0x4C43</code>),
+      which busy-waits (<code>lcd_wait_busy</code>) then <code>OUT (C),A</code> with C = 0xE0 (command)
+      or 0xE8 (data). <code>lcd_init</code> (<code>0x4B99</code>) is a textbook bring-up:</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Command</th><th>HD44780 meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="p">0x30 ×3</td><td>Function set, 8-bit — power-on reset handshake (with delays)</td></tr>
+        <tr><td class="p">0x38</td><td>Function set: <b>8-bit, 2 lines, 5×8 font</b></td></tr>
+        <tr><td class="p">0x08</td><td>Display off</td></tr>
+        <tr><td class="p">0x01</td><td>Clear display</td></tr>
+        <tr><td class="p">0x06</td><td>Entry mode: auto-increment, no shift</td></tr>
+        <tr><td class="p">0x0C</td><td>Display on, cursor off, blink off</td></tr>
+        <tr><td class="p">0x02</td><td>Return home</td></tr>
+        <tr><td class="p">wr 0x55→0xE8</td><td>board/hardware presence check</td></tr>
+      </tbody>
+    </table></div>
+    <p><code>N=1</code> confirms a <b>2-line</b> panel (line 2 = DDRAM 0x40, sent as <code>0xC0</code>).
+      Runtime control commands: <code>0x0E</code> cursor-<b>on</b> during numeric entry
+      (<code>edit_num_field 0x04C9</code>), <code>0x0C</code> cursor-off after (<code>0x05E0</code>);
+      <code>0xC0</code> to line 2 on newline; <code>0x01</code>/<code>0x02</code> clear/home from the
+      inline-string control bytes; and one <code>0x48</code> "set CGRAM addr" at boot (<code>0x0196</code>)
+      for a custom glyph.</p>
+
+    <pre class="tree"><b>OPERATING MODE</b>  <span class="amb">(autoloader auto-detected)</span>
+├─ <b>Autoloader</b>  — hopper / accept / reject, with jam &amp; timeout status
+└─ <b>Manual operation</b>
+     ├─ No. of copies
+     ├─ Read source disk        <span class="amb">→ image present / missing</span>
+     ├─ Copy mode: Format-Write-Verify · Write+Verify · CRC check
+     │              Format+Verify · Write disk · Bit-per-bit verify
+     └─ Combined:  RD+FWV · RD+WV · RD+FW · RD+W
+
+<b>CONFIG</b>  <span class="amb">(hold EXIT at boot)</span>
+├─ Code loading · Precomp · Set maximal cylinder
+├─ Write protect · Copy direction (in↔out) · Data-error recovery
+├─ Serialization ──▶ Initial Nr · Increment · Cyl · Head · Sector · Offset
+├─ Batch processing
+├─ Form factor 3.5″/5.25″ · Density DD/HD · Spindle speed N/H/Double
+└─ Simultaneous / Normal mode
+
+<b>HRD DIAGNOSTICS</b>
+├─ Radial alignment · Eccentricity · Head azimuth
+├─ Positioner hysteresis  <span class="amb">(µm, timed via 8253 c1/c2)</span>
+└─ Spindle motor speed    <span class="amb">(RPM, per head)</span>
+
+<b>SPECIAL FORMATS</b>  1–16   ·   <b>REMOTE CONTROL</b>  (host link)</pre>
+
+    <ul class="clean">
+      <li><b>Serialization</b> stamps an auto-incrementing serial number onto each copy at a configurable cylinder/head/sector/offset, optionally re-verified bit-for-bit.</li>
+      <li><b>HRD diagnostics</b> measure drive mechanics using the 8253 counters as interval timers — the added timer datasheet is what made this readable.</li>
+      <li><b>Simultaneous mode</b> writes all fitted drives in one pass via the parallel DMA path; spindle-speed and density options match the media.</li>
+    </ul>
+  </section>
+
+  <section id="config">
+    <div class="snum">09</div>
+    <h2>Config &amp; provenance</h2>
+    <p>Configuration lives in the 0x31xx RAM block and is persisted to a small <b>bit-banged serial
+      EEPROM</b> (helpers at 0x2ACB / 0x2B3E), re-saved whenever the config wizard completes. The
+      boot checksum validates it; corruption forces &ldquo;Run config again&rdquo;.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Tag</th><th>Offset</th><th>Date</th><th>Likely meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="p">M6T9I2F 961002</td><td class="p">0x0054</td><td class="tnum">1996-10-02</td><td>Main firmware build (shown at power-on)</td></tr>
+          <tr><td class="p">STIBG11 950503</td><td class="p">0x4B8B</td><td class="tnum">1995-05-03</td><td>Downloadable-code / loader module</td></tr>
+          <tr><td class="p">R6R1A&nbsp;&nbsp;&nbsp;940329</td><td class="p">0x52CF</td><td class="tnum">1994-03-29</td><td>Boot-loader module</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">The three 14-byte version fields are indexed by a pointer table at
+      <code>0x0040–0x0045</code> (<code>DW 0x0054, 0x4B8B, 0x52CF</code>). The third tag is
+      <b>R6R1A</b> at 0x52CF, not &ldquo;IR6R1A&rdquo; at 0x52CE — the leading <code>I</code> was a
+      <code>strings</code> artifact from the adjacent <code>iovec_annun</code> pointer's high byte <code>0x49</code>.</p>
+  </section>
+
+  <section id="open">
+    <div class="snum">10</div>
+    <h2>Open questions</h2>
+    <p>Two genuine unknowns remain — both require the board schematic; the firmware carries no
+      distinguishing evidence.</p>
+    <ul class="clean">
+      <li><b>PPI vs PIO ownership of 0x40/0x50/0x60/0x70</b> <span class="chip c-unc">Hardware</span>. Used purely as write-only drive-select/motor latches; firmware never reads them or sends a mode/control word (which both an 8255 and a Z8420 require to set direction), so the chip can't be identified from code.</li>
+      <li><b>Exact USART part</b> <span class="chip c-unc">Hardware</span>. Status bits (RxRDY=b0, TxRDY=b2, errors b4–6) and reset byte <code>0x30</code> read 8251-class; no mode/baud init on 0xD0–0xDC (baud from the 8253). Needs the board.</li>
+    </ul>
+    <h3>Resolved during analysis</h3>
+    <ul class="clean">
+      <li><b>0x9C is an 8-line addressable latch</b> <span class="chip c-ok">Resolved</span> (decode <code>data = bit0, select = bits [3:1]</code>) — line 1 EPROM/RAM map, line 2 write-protect, lines 4/5 per-drive datarate, line 6 static drive/write enable, line 7 FDC result-read strobe (§3). <em>Residual (still needs the board):</em> the physical A0–A2 ordering and which board signal each line drives.</li>
+      <li><b>0xB0</b> <span class="chip c-ok">Resolved</span> is a flat 8-bit DRAM bank latch — no drive-select field; drive UNIT/HEAD select is in the FDC <code>HD/US</code> command byte. (§5; internals §B)</li>
+      <li><b>0xE8 / 0x55</b> <span class="chip c-ok">Resolved</span> is an LCD presence/health self-test with a headless fallback, not a board-ID strap.</li>
+      <li><b>Host opcode table</b> <span class="chip c-ok">Resolved</span> fully mapped: control opcodes 0x09–0x0F plus a duplication-run fall-through (0x07 = BP, 0x01–0x06/0x08 = FDD). (internals §D)</li>
+      <li><b><code>fmt_param_tbl</code> (0x326E)</b> <span class="chip c-ok">Resolved</span> declares 8 standard DOS formats but is dead/unreferenced — verified that no code (including the download loader) reads it. (internals §B)</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p><b>Method.</b> Disassembled with a purpose-written Z80 disassembler (full CB/ED/DD/FD
+      coverage), cross-referenced against the on-board datasheets, and verified by reading the
+      actual primitives — not pattern-matched from a distance.</p>
+    <p class="mono">Image: LSK M6T912F D1:97.bin · 32768 bytes · Z80 · analysis 2026-07-22</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

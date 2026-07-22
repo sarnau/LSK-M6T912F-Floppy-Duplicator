@@ -1,0 +1,48 @@
+These are the result of observing the communication between the autoloader and software
+that drove it, followed by poking with a terminal program.
+
+RS232. 9600 8N1
+
+on powerup:
+prints "LSK Autoloader" and "Copyright - LSK Data Systems 1995"
+S prints one char until C is run
+
+COMMANDS:
+S	status
+C	calibrate/clear
+I	insert
+A	accept
+R	reject
+O	prints version number
+V	prints hex string of cycle count (big endian, 32-bit)
+
+RESPONSES:
+E	error (use S to get the error code)
+X	executed successfully
+?	"what?" (unknown command)
+
+STATUS CODES (OBSERVED)
+07	ok / drive empty
+0B	disk in drive (also ok)
+
+27	input hopper empty
+
+47	no disk in drive (asked to eject without disk)
+4B	disk in drive (motor arm forward with disk in drive)
+
+87	disk jam (reject bin sensor)
+8B	disk jam (reject bin sensor)
+
+97	disk jam (disk ejected from drive, but did not exit accept output)
+9B	disk jam while ejecting (reject bin selected)
+
+
+0000 0111 07 ok, drive empty
+0000 1011 0B ok, disk in drive
+0010 0111 27 input hopper empty
+0100 0111 47 no disk in drive (asked to eject without disk)
+0100 1011 4B disk in drive (motor arm forward with disk in drive)
+1000 0111 87 disk jam (reject bin sensor)
+1000 1011 8B disk jam (reject bin sensor)
+1001 0111 97 disk jam (disk ejected from drive but did not exit accept output)
+1001 1011 9B disk jam while ejecting (reject bin selected)
