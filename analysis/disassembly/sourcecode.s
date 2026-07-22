@@ -10270,16 +10270,16 @@ drive_blk_b:
 dma_ptr_save:
 4B21  00 00 00 00 00 00 00 00                         |........|
 
-; 8x 12-byte format geometry records (sectors/track per zone); accessed in 24-byte (2-record) format pairs
+; fmt_geom_recs: default geometry for the configurable "Special formats" - 4 format blocks x 24 bytes (2x 12-byte records = .a/.b), selected via drive_index_bits (cfg_byte / format_desc) and copied to the 0x31A1 working block by the user/default config menu. Read-only. 6 LE words/record (word0=0; exact field semantics not fully pinned)
 fmt_geom_recs:
-4B29  00 00 21 01 28 00 28 00 28 00 28 00             |..!.(.(.(.(.|
-4B35  00 00 1E 01 28 00 28 00 28 00 28 00             |....(.(.(.(.|
-4B41  00 00 12 01 2C 00 36 01 4B 02 50 00             |....,.6.K.P.|
-4B4D  00 00 12 01 27 02 2C 01 43 02 50 00             |....'.,.C.P.|
-4B59  00 00 50 00 50 00 50 00 50 00 50 00             |..P.P.P.P.P.|
-4B65  00 00 50 00 50 00 50 00 50 00 50 00             |..P.P.P.P.P.|
-4B71  00 00 37 01 47 02 50 00 50 00 50 00             |..7.G.P.P.P.|
-4B7D  00 00 33 01 46 02 50 00 50 00 50 00             |..3.F.P.P.P.|
+4B29  00 00 21 01 28 00 28 00 28 00 28 00             |..!.(.(.(.(.|   ; fmt0.a  words: 0  289   40   40   40   40
+4B35  00 00 1E 01 28 00 28 00 28 00 28 00             |....(.(.(.(.|   ; fmt0.b  words: 0  286   40   40   40   40
+4B41  00 00 12 01 2C 00 36 01 4B 02 50 00             |....,.6.K.P.|   ; fmt1.a  words: 0  274   44  310  587   80
+4B4D  00 00 12 01 27 02 2C 01 43 02 50 00             |....'.,.C.P.|   ; fmt1.b  words: 0  274  551  300  579   80
+4B59  00 00 50 00 50 00 50 00 50 00 50 00             |..P.P.P.P.P.|   ; fmt2.a  words: 0   80   80   80   80   80
+4B65  00 00 50 00 50 00 50 00 50 00 50 00             |..P.P.P.P.P.|   ; fmt2.b  words: 0   80   80   80   80   80
+4B71  00 00 37 01 47 02 50 00 50 00 50 00             |..7.G.P.P.P.|   ; fmt3.a  words: 0  311  583   80   80   80
+4B7D  00 00 33 01 46 02 50 00 50 00 50 00             |..3.F.P.P.P.|   ; fmt3.b  words: 0  307  582   80   80   80
 
 ; current FDC data-rate register bits (ORed then OUT to 0xB1)
 fdc_rate_reg:
