@@ -645,11 +645,12 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
   <section id="open">
     <div class="snum">10</div>
     <h2>Open questions</h2>
-    <p>Two genuine unknowns remain — both require the board schematic; the firmware carries no
+    <p>Three genuine unknowns remain — all require the board schematic; the firmware carries no
       distinguishing evidence.</p>
     <ul class="clean">
-      <li><b>PPI vs PIO ownership of 0x40/0x50/0x60/0x70</b> <span class="chip c-unc">Hardware</span>. Used purely as write-only drive-select/motor latches; firmware never reads them or sends a mode/control word (which both an 8255 and a Z8420 require to set direction), so the chip can't be identified from code.</li>
+      <li><b>PPI vs PIO ownership of 0x40/0x50/0x60/0x70 (and 0xC6)</b> <span class="chip c-unc">Hardware</span>. Used purely as write-only drive-select/motor/bank latches (per-drive values from <code>drive_blk_a/b+0x7</code> reach <code>0xB0</code>/<code>0xC6</code>); firmware never reads them or sends a mode/control word (which both an 8255 and a Z8420 require to set direction), so the chip can't be identified from code.</li>
       <li><b>Exact USART part</b> <span class="chip c-unc">Hardware</span>. Status bits (RxRDY=b0, TxRDY=b2, errors b4–6) and reset byte <code>0x30</code> read 8251-class; no mode/baud init on 0xD0–0xDC (baud from the 8253). Needs the board.</li>
+      <li><b>Port 0xC0's function</b> <span class="chip c-unc">Hardware</span>. Written <code>0xFF</code> <b>exactly once</b> at boot (<code>0x0012</code>, alongside the <code>0xB0</code> bank latch) and never read or re-written. Lives in the drive/FDC-control block (<code>0xC2</code> precomp, <code>0xC3</code> rate, <code>0xC6</code> drive-sel-b); <code>0xFF</code> reads as an all-ones idle init, but with no dynamic use its exact role can't be pinned from firmware.</li>
     </ul>
     <h3>Resolved during analysis</h3>
     <ul class="clean">

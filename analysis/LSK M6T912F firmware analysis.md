@@ -397,11 +397,12 @@ Three 14-byte version fields (7-char module name + date) are indexed by a **poin
 
 ## 10. Open questions
 
-Two genuine unknowns remain — both require the board schematic; the firmware carries no
+Three genuine unknowns remain — all require the board schematic; the firmware carries no
 distinguishing evidence:
 
-- **PPI vs PIO ownership of 0x40/0x50/0x60/0x70** `[hardware]` — used purely as write-only drive-select/motor latches; the firmware never reads them or sends a mode/control word (which both an 8255 and a Z8420 require to set direction), so the chip can't be identified from code.
+- **PPI vs PIO ownership of 0x40/0x50/0x60/0x70 (and 0xC6)** `[hardware]` — used purely as write-only drive-select/motor/bank latches (per-drive values from `drive_blk_a/b+0x7` reach `0xB0`/`0xC6`); the firmware never reads them or sends a mode/control word (which both an 8255 and a Z8420 require to set direction), so the chip can't be identified from code.
 - **Exact USART part** `[hardware]` — status bits (RxRDY=b0, TxRDY=b2, errors b4–6) and reset byte `0x30` read 8251-class; no mode/baud init on 0xD0–0xDC (baud from the 8253). Needs the board.
+- **Port 0xC0's function** `[hardware]` — written `0xFF` **exactly once** at boot (`0x0012`, alongside the `0xB0` bank latch) and never read or re-written. Lives in the drive/FDC-control block (`0xC2` precomp, `0xC3` rate, `0xC6` drive-sel-b); `0xFF` reads as an all-ones idle/deselect init, but with no dynamic use its exact role can't be pinned from firmware. (§5)
 
 **Resolved during analysis** (were open in earlier revisions):
 
