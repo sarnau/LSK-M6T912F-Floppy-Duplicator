@@ -208,6 +208,7 @@
           <tr><td>Display</td><td>HD44780 LCD (2×20)</td><td class="p">E0</td><td>Front-panel character display</td><td><span class="chip c-ok">Verified</span></td><td><code>Hiatchi HD44780 LCD.pdf</code></td></tr>
           <tr><td>Image DRAM</td><td>2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB</td><td class="p">bank @ B0</td><td>Banked disk-image buffer — image banks 0x00–0xFE; bank <b>0xFF = program-RAM mirror</b></td><td><span class="chip c-ok">Verified</span></td><td><code>AS4C14400 1M×4 RAM.PDF</code></td></tr>
           <tr><td>Line driver</td><td>Microchip TC232</td><td class="p">—</td><td>RS-232 level shifting</td><td><span class="chip c-info">Reported</span></td><td><code>Microchip TC232CPE RS232.PDF</code></td></tr>
+          <tr><td>Config EEPROM</td><td>Catalyst CAT24C02 (I²C, 256×8)</td><td class="p">F0 (bit-banged I²C)</td><td>Non-volatile settings + serial number (write-protect, copy dir, serialization, err-recovery, max-cyl)</td><td><span class="chip c-ok">Verified</span></td><td><code>CAT24C02.pdf</code></td></tr>
         </tbody>
       </table>
     </div>

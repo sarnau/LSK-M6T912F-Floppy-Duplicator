@@ -46,6 +46,7 @@ datasheets are included for reference.
 | Hitachi HD44780 | 2×20 character LCD | E0/E8 | `Hiatchi HD44780 LCD.pdf` |
 | Microchip TC232 | RS-232 line driver | — | `Microchip TC232CPE RS232.PDF` |
 | Alliance AS4C14400 | 1M×4 DRAM (2× 4 MB SIMM = 8 MB image buffer) | bank @ B0 | `AS4C14400 1M×4 RAM.PDF` |
+| Catalyst CAT24C02 | I²C serial EEPROM (256×8) — config + serial-number NVRAM | F0 (bit-banged I²C) | `CAT24C02.pdf` |
 
 Clocking: 32.000 MHz + 48.000 MHz crystals (the 8253's 2 MHz input is 32 MHz ÷ 16); address decode is
 a GAL20V8B + PALCE20V8H. The full hardware map, port table, and open questions are in the main analysis.
@@ -64,7 +65,7 @@ Approximate placement of the major chips on the front side (image above):
 | Center | NEC µPD8237A DMA (under the "KDP-05" model/serial sticker); NEC µPD8253C-2 PIT (directly below the DMA); MC74HCT138 I/O decoders (U57 + one more); Terra Computer Systems logo |
 | Bottom-left | NEC µPD71055 PPI (directly above the SIO); Zilog Z80 SIO/0 (Z0844006PSC); Microchip TC232 line driver |
 | Bottom-center | Zilog Z80 CPU (Z0840006PSC); the M6T912F firmware EPROM (windowed, "D1/97"); PALCE20V8H (address-decode PLD) |
-| Right | 2× AS4C14400 DRAM SIMMs (8 MB image buffer); banks of 74HCT373 / 74HCT157 latches |
+| Right | 2× AS4C14400 DRAM SIMMs (8 MB image buffer); banks of 74HCT373 latches / 74HCT157 DRAM address muxes; Catalyst CAT24C02 I²C config EEPROM (near the connector) |
 
 ## Regenerating the disassembly
 

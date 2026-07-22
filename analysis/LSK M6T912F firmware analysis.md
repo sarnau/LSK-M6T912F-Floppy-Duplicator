@@ -35,6 +35,7 @@ Origin markers in the strings — `Adresa =` (Czech/Slovak/Croatian "address"), 
 | Display | HD44780 LCD (2×20) | E0/E8 | Front-panel character display | [V] | `Hiatchi HD44780 LCD.pdf` |
 | Image DRAM | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `AS4C14400 1M×4 RAM.PDF` |
 | Line driver | Microchip TC232 | — | RS-232 level shifting | [R] | `Microchip TC232CPE RS232.PDF` |
+| Config EEPROM | Catalyst CAT24C02 (I²C, 256×8) | F0 (bit-banged I²C) | Non-volatile settings + serial number (write-protect, copy dir, serialization, err-recovery, max-cyl) | [V] | `CAT24C02.pdf` |
 
 The parallel I/O is a **single µPD71055 PPI** (there is no Z8420 PIO — an earlier assumption that has
 been corrected); together with discrete 74HCT373 latches it drives the digital motor/select/sense
