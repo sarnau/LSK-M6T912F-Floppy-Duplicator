@@ -589,7 +589,7 @@
 2BAB  track_ptr_scale
 2BB3  loc_2BB3
 2BB7  geom_sector_calc
-2BD1  hrd_dispatch
+2BD1  hrd_radial_a
 2BDA  hrd_radial_b
 2BE3  hrd_radial_c
 2BEC  show_radial_align
@@ -707,7 +707,7 @@
 3173  serial_addr
 3175  serial_ptr
 3178  hrd_model_idx
-3186  hrd_fmt_tbl
+3186  hrd_test_tbl
 319F  rpm_residual
 31A1  hrd_hd0
 31A3  hrd_hd1

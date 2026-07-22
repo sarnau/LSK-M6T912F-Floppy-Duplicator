@@ -157,19 +157,45 @@ revolution, latch (ctrl 0x84), read residual, `elapsed = 0xFFFF − residual`, t
 `9 230 769 = 60 × (2 MHz ÷ 13)` — exact integer match → confirms the counter clock and a **2 MHz
 master** `[?]` (inferred). Checks: 300 RPM → 30 769 ticks; 360 RPM → 25 641 ticks.
 
-**Alignment tests use no ADC.** Radial alignment / eccentricity / head azimuth / positioner
-hysteresis are computed **in software from the FDC read stream**: a factory alignment diskette is
-captured into 0x8000–0xFFFF via the four FDCs; `0x3008` finds sync bursts (three bytes summing to
-0xFF, ×7) and returns the byte offset; offsets are differenced and median-filtered (`0x3084`) to a µm
-value shown per head (Hd0/Hd1). The capture reuses the **normal FDC read path** — there is **no ADC**;
-the `0x9C` `0x0E→0x0F` strobe seen during it is just the general `fdc_poll_complete` (0x472D)
-result-read pulse (issued before every FDC command's result read, not an analog/HRD-specific read).
-That pulse is one line of the 0x9C addressable latch: decode is **data = bit 0, select = bits [3:1]**
-(so `0x0E`→`0x0F` is a 0→1 edge on select-`111`/line 7); other lines are `001` EPROM/RAM map (boot
-`0x92`, boot-only), `010` write-protect (`0x04`/`0x05`), `100`/`101` per-drive datarate select
-(`fdc_rate_a/b`), `110` static drive/write enable (const `0x2D` bit0, boot-set — *not* precomp; real
-write-precomp is FDC port `0xC2`). See main §3.
-`[?]` exact geometric→µm scale embedded in the capture, not a ROM constant.
+### The alignment-diagnostic suite
+
+The **HRD diagnostics** menu (`hrd_menu` 0x1540) offers five measurement types, all read from a
+factory alignment diskette and computed **in software from the FDC read stream — there is no ADC.**
+The selected type (`hrd_test_idx`, 0–4) maps 1:1 onto a record of the ROM table **`hrd_test_tbl`**
+(0x3186):
+
+| idx | test (ROM label) | scale `K` | unit |
+|---|---|---|---|
+| 0 | Radial alignment (3 tracks) | 422 | µm |
+| 1 | Eccentricity | 422 | µm |
+| 2 | Head azimuth | 696 | angular |
+| 3 | Positioner "hystheresis" *(sic in ROM)* | 422 | µm |
+| 4 | Spindle motor speed | 1 | RPM (raw) |
+
+Each 5-byte record is `{ scale K : word, handler address : word, result mask : byte }`; the handler
+field is reached by a computed jump (`PUSH DE; RET`, 0x2CED).
+
+**Measurement pipeline** (`hrd_radial_measure` 0x2D5B): seek the alignment track and capture **four
+read windows** into the image buffer — head 0 reads A/B at `image_buf+0x0000`/`+0x2000`, head 1 at
+`+0x4000`/`+0x6000`. `hrd_find_burst` (0x3008) scans each window for the sync burst (three bytes
+summing to `0xFF`, ×7) and returns its byte offset. The per-head result is the **difference of the
+two burst offsets** (`SBC HL,DE`), cancelling common-mode timing and leaving the radial displacement.
+This is repeated **10×** and passed through `hrd_median_filter` (0x3084, bubble-sort + average the
+middle samples) to yield the stored `hrd_hd0`/`hrd_hd1` per head.
+
+**The display scale is a ROM constant** — *this resolves the earlier open question.* `hrd_show_scaled`
+(0x2CEE) computes **`displayed = raw × K / 10000`** (`mul16`, then `÷ 0x2710`), where `K` is
+`hrd_test_tbl[test].scale`. `hrd_test_tbl` is **never written by any code** — it is a static,
+ROM-initialised table — so the geometric→display scale is a firmware constant, **not** a value
+embedded in the captured disk (as previously suspected). The three radial-displacement tests share
+`K = 422` (µm), azimuth uses `K = 696` (angular), and spindle uses `K = 1` (raw RPM — RPM is derived
+separately via the 8253, above).
+
+The capture reuses the **normal FDC read path**; the `0x9C` `0x0E→0x0F` strobe seen during it is just
+the general `fdc_poll_complete` (0x472D) result-read pulse — one line of the 0x9C addressable latch
+(decode **data = bit 0, select = bits [3:1]**: `0x0E`→`0x0F` is a 0→1 edge on select-`111`/line 7;
+other lines `001` EPROM/RAM map, `010` write-protect, `100`/`101` datarate, `110` static enable).
+See main §3.
 
 ---
 

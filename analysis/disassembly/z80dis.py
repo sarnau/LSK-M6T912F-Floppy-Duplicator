@@ -270,7 +270,7 @@ SYMBOLS = {
     0x1540:'hrd_menu', 0x1555:'special_formats_menu',
     0x2ACB:'eeprom_write', 0x2B3E:'eeprom_io',
     # --- HRD diagnostics + 8253 ---
-    0x2BD1:'hrd_dispatch', 0x2E25:'hrd_hysteresis', 0x2E72:'hrd_spindle_rpm',
+    0x2BD1:'hrd_radial_a', 0x2E25:'hrd_hysteresis', 0x2E72:'hrd_spindle_rpm',
     0x3008:'hrd_find_burst', 0x3084:'hrd_median_filter', 0x30EB:'neg16',
     0x37DB:'index_period_timer',
     # --- FDC command engine ---
@@ -337,7 +337,7 @@ SYMBOLS = {
     0x1AF6:'start_copy_fwv', 0x1CC8:'start_copy_wv', 0x1CCD:'start_copy_format',
     0x1CDB:'start_copy_fmtverify', 0x1D92:'start_copy_write', 0x1DAF:'start_copy_verify',
     0x1DB4:'show_clean_fdd', 0x1DC6:'abort_check', 0x25C1:'show_batch', 0x25D7:'start_batch',
-    # HRD diagnostics tests (0x1540 hrd_menu, 0x2BD1 hrd_dispatch, 0x2E25/0x2E72 already named)
+    # HRD diagnostics tests (0x1540 hrd_menu, 0x2BD1 hrd_radial_a, 0x2E25/0x2E72 already named)
     0x2BDA:'hrd_radial_b', 0x2BE3:'hrd_radial_c', 0x2C35:'hrd_show_ecc', 0x2C47:'hrd_show_azimuth',
     0x2C59:'hrd_show_positioner', 0x2C76:'hrd_show_spindle',
     0x2CAC:'hrd_run_a', 0x2CB0:'hrd_run_b', 0x2CB4:'hrd_run_c', 0x2CBB:'hrd_run_d', 0x2CC1:'hrd_run_e',
@@ -505,7 +505,7 @@ def region_at(addr):
 
 # Data addresses whose table renders as fixed-size records (bytes per row).
 RECORD_STRIDE = {
-    0x3186: 5,   # hrd_fmt_tbl: 5-byte records {scale:word, str_ptr:word, flags:byte}
+    0x3186: 5,   # hrd_test_tbl: 5 per-test records {scale K:word, handler addr:word, result mask:byte}
     0x4ABC: 5,   # fdc_param_recs: 5-byte records {b0, rate:word, b3, b4}
     0x4B29: 12,  # fmt_geom_recs: 12-byte records (indexed in 24-byte format pairs)
     # fmt_param_tbl: 8x 19-byte DOS BPB records, one per built-in disk format
@@ -864,9 +864,9 @@ COMMENTS = {
     0x2CB4: 'HRD alignment-run entry (variant C): set test index 0/flag 1, fall into measure+display tail',
     0x2CBB: 'HRD alignment-run entry (variant D): set test index 0/flag 2, fall into measure+display tail',
     0x2CC1: "HRD alignment run: measure radial, print head0/head1 scaled values, then jump to test's handler",
-    0x2CEE: 'scale a signed 16-bit measurement (mul16 * factor / 10000) and print to LCD preserving sign',
+    0x2CEE: 'scale a signed measurement to display units: value * K / 10000, K = hrd_test_tbl[test].scale (ROM const: 422 radial/ecc/positioner um, 696 azimuth, 1 spindle-RPM); print preserving sign',
     0x2D2C: 'index into the per-test result record table (stride 5) selected by hrd_test_idx',
-    0x2D5B: 'HRD alignment measure: seek, capture read stream, analyse burst positions',
+    0x2D5B: 'HRD alignment measure: seek+capture 4 windows (hd0 A/B @ image_buf+0/+0x2000, hd1 A/B @ +0x4000/+0x6000); per-head result = burst-position difference (hrd_find_burst, SBC); 10 samples -> hrd_median_filter -> hrd_hd0/hd1',
     0x2E25: 'HRD positioner hysteresis: step in/out, difference of approach positions (um)',
     0x2E72: 'HRD spindle RPM: time index period (8253 c1/c2), RPM = 9230769/ticks',
     0x2EBA: 'HRD read-back: step both heads to cyl 0x3133, arm per-drive DMA, read all sides, CRC-verify, build 4-bit success mask in op_word',
@@ -1066,7 +1066,7 @@ SYMBOLS.update({
     0x3173:'serial_addr',
     0x3175:'serial_ptr',
     0x3178:'hrd_model_idx',
-    0x3186:'hrd_fmt_tbl',
+    0x3186:'hrd_test_tbl',
     0x31C1:'datarate_tbl',
     0x3219:'precomp_tbl',
 })

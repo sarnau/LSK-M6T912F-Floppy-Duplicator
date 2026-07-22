@@ -2755,7 +2755,7 @@ ops_menu:
 1520  C6 1D         DW abort_check      ; [110]
 
 hrd_test_menu:
-1522  D1 2B         DW hrd_dispatch     ; [111]
+1522  D1 2B         DW hrd_radial_a     ; [111]
 1524  DA 2B         DW hrd_radial_b     ; [112]
 1526  E3 2B         DW hrd_radial_c     ; [113]
 1528  35 2C         DW hrd_show_ecc     ; [114]
@@ -5592,7 +5592,7 @@ geom_sector_calc:
 2BD0  C9            RET
 
 ; HRD radial-alignment test (head variant a)
-hrd_dispatch:
+hrd_radial_a:
 2BD1  CD EC 2B      CALL show_radial_align
 2BD4  3E 00         LD A,0x00
 2BD6  CD 04 2C      CALL hrd_show_radial
@@ -5731,7 +5731,7 @@ loc_2CDE:
 2CE0  CD EE 2C      CALL hrd_show_scaled
 
 loc_2CE3:
-2CE3  21 88 31      LD HL,hrd_fmt_tbl+0x2
+2CE3  21 88 31      LD HL,hrd_test_tbl+0x2
 2CE6  CD 2C 2D      CALL hrd_rec_ptr
 2CE9  5E            LD E,(HL)
 2CEA  23            INC HL
@@ -5739,11 +5739,11 @@ loc_2CE3:
 2CEC  D5            PUSH DE
 2CED  C9            RET
 
-; scale a signed 16-bit measurement (mul16 * factor / 10000) and print to LCD preserving sign
+; scale a signed measurement to display units: value * K / 10000, K = hrd_test_tbl[test].scale (ROM const: 422 radial/ecc/positioner um, 696 azimuth, 1 spindle-RPM); print preserving sign
 hrd_show_scaled:
 2CEE  F5            PUSH AF
 2CEF  E5            PUSH HL
-2CF0  21 86 31      LD HL,hrd_fmt_tbl
+2CF0  21 86 31      LD HL,hrd_test_tbl
 2CF3  CD 2C 2D      CALL hrd_rec_ptr
 2CF6  7E            LD A,(HL)
 2CF7  23            INC HL
@@ -5797,7 +5797,7 @@ hrd_rec_ptr:
 2D59  F1            POP AF
 2D5A  C9            RET
 
-; HRD alignment measure: seek, capture read stream, analyse burst positions
+; HRD alignment measure: seek+capture 4 windows (hd0 A/B @ image_buf+0/+0x2000, hd1 A/B @ +0x4000/+0x6000); per-head result = burst-position difference (hrd_find_burst, SBC); 10 samples -> hrd_median_filter -> hrd_hd0/hd1
 hrd_radial_measure:
 2D5B  21 A5 31      LD HL,hrd_test_idx
 2D5E  77            LD (HL),A
@@ -5849,7 +5849,7 @@ loc_2D99:
 loc_2D9F:
 2D9F  CD BA 2E      CALL hrd_seek_read
 2DA2  47            LD B,A
-2DA3  21 8A 31      LD HL,hrd_fmt_tbl+0x4
+2DA3  21 8A 31      LD HL,hrd_test_tbl+0x4
 2DA6  CD 2C 2D      CALL hrd_rec_ptr
 2DA9  4E            LD C,(HL)
 2DAA  78            LD A,B
@@ -6473,7 +6473,7 @@ serial_ptr:
 hrd_model_idx:
 3178  00 00 10 27 14 22 20 4F 2C 4C 28 4F 2C 4C       |...'." O,L(O,L|
 ; HRD test descriptor records, 5 bytes each (limits + string ptr)
-hrd_fmt_tbl:
+hrd_test_tbl:
 3186  A6 01 25 30 0F                                  |..%0.|
 318B  A6 01 40 30 03                                  |..@0.|
 3190  B8 02 4A 30 0F                                  |..J0.|
