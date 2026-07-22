@@ -14,7 +14,7 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 | `analysis/LSK M6T912F firmware analysis.md` / `.html` | Main analysis — hardware map, memory architecture, boot sequence, I/O port map, open questions |
 | `analysis/LSK M6T912F firmware internals.md` / `.html` | Companion drill-downs — duplication engine, FDC command engine, HRD diagnostics + 8253 timer, serial protocol handlers |
 | `analysis/disassembly/z80dis.py` | Custom two-pass Z80 disassembler (symbols, comments, data regions, offset labels) |
-| `analysis/disassembly/full-disassembly.lst` | Generated, fully-labeled listing (`0x0000–0x52FF`) |
+| `analysis/disassembly/sourcecode.s` | Generated, fully-labeled listing (`0x0000–0x52FF`) |
 | `analysis/disassembly/symbols.txt` | Generated symbol table |
 
 ## The machine, briefly
@@ -35,7 +35,7 @@ The disassembler is self-contained (standard library only):
 
 ```sh
 cd analysis/disassembly
-python3 z80dis.py "../../LSK M6T912F D1:97.bin" 0x0000 0x5300 > full-disassembly.lst
+python3 z80dis.py "../../LSK M6T912F D1:97.bin" 0x0000 0x5300 > sourcecode.s
 ```
 
 The `0x5300` end bound trims the `0xFF`-fill tail (real content ends at `0x52FF`).

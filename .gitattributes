@@ -11,8 +11,8 @@
 
 # --- Generated disassembler output ---
 # Keep out of GitHub language stats and collapse in diffs by default.
-analysis/disassembly/full-disassembly.lst linguist-generated=true
-analysis/disassembly/symbols.txt          linguist-generated=true
+analysis/disassembly/sourcecode.s linguist-generated=true
+analysis/disassembly/symbols.txt  linguist-generated=true
 
 # --- Standalone analysis pages are documentation, not source ---
 analysis/*.html linguist-documentation=true

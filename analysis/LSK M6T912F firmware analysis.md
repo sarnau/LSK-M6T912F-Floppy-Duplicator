@@ -416,7 +416,7 @@ distinguishing evidence:
   the `CALL 0x4C59` inline-string print convention (renders the string as `DB` and realigns code
   after the `0x00`), emits readable **labels** for known functions/variables, rewrites operand
   addresses to those labels, and annotates I/O ports. Usage: `python3 z80dis.py "<bin>" <start> <end>`
-- `disassembly/full-disassembly.lst` — full **0x0000–0x52FF** listing, labeled (**1,218 labels** — 539 named + 679 auto `loc_`; ~3,240 operand references resolved to labels or `label+offset`).
+- `disassembly/sourcecode.s` — full **0x0000–0x52FF** listing, labeled (**1,218 labels** — 539 named + 679 auto `loc_`; ~3,240 operand references resolved to labels or `label+offset`).
 - `disassembly/symbols.txt` — the symbol map (address → label + I/O ports) used to annotate the listing.
 
 *Subsystem deep-dives are documented in the companion `LSK M6T912F firmware internals.md` / `.html`.*
