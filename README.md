@@ -52,7 +52,9 @@ a GAL20V8B + PALCE20V8H. The full hardware map, port table, and open questions a
 
 ## Board layout
 
-Approximate placement of the major chips on the front side, read from `PCB Front.jpg`:
+![LSK M6T912F firmware board — Terra Computer Systems KDP-05 B (front)](PCB%20Front.jpg)
+
+Approximate placement of the major chips on the front side (image above):
 
 | Region | Chips |
 |---|---|
