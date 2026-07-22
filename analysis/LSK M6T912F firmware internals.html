@@ -321,14 +321,17 @@
         <tbody>
           <tr><td class="a">0</td><td>Radial alignment (3 tracks)</td><td class="a">422</td><td>µm</td></tr>
           <tr><td class="a">1</td><td>Eccentricity</td><td class="a">422</td><td>µm</td></tr>
-          <tr><td class="a">2</td><td>Head azimuth</td><td class="a">696</td><td>angular</td></tr>
+          <tr><td class="a">2</td><td>Head azimuth</td><td class="a">696</td><td>arc-min (')</td></tr>
           <tr><td class="a">3</td><td>Positioner &ldquo;hystheresis&rdquo; <em>(sic in ROM)</em></td><td class="a">422</td><td>µm</td></tr>
           <tr><td class="a">4</td><td>Spindle motor speed</td><td class="a">1</td><td>RPM (raw)</td></tr>
         </tbody>
       </table>
     </div>
     <p>Each 5-byte record is <code>{ scale K : word, handler address : word, result mask : byte }</code>;
-      the handler is reached by a computed jump (<code>PUSH DE; RET</code>, 0x2CED).</p>
+      the handler is reached by a computed jump (<code>PUSH DE; RET</code>, 0x2CED) and points to the
+      per-test LCD formatter (<code>hrd_disp_radial</code>/<code>_ecc</code>/<code>_azimuth</code>/<code>_positioner</code>,
+      and the shared <code>show_rpm_suffix</code> for spindle). These fix the displayed units:
+      radial/eccentricity/positioner in <b>µm</b>, azimuth in <b>arc-minutes</b> (<code>'</code>), spindle in <b>rpm</b>.</p>
     <p><b>Measurement pipeline</b> (<code>hrd_radial_measure</code> 0x2D5B): seek the alignment track
       and capture <b>four read windows</b> into the image buffer — head 0 reads A/B at
       <code>image_buf+0x0000</code>/<code>+0x2000</code>, head 1 at <code>+0x4000</code>/<code>+0x6000</code>.

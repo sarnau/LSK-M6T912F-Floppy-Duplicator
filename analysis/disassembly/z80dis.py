@@ -374,6 +374,9 @@ SYMBOLS.update({0x3406:'fdc_format_build', 0x068D:'lcd_clear_line1',
     0x2B4D:'i2c_ack', 0x2B55:'eeprom_read', 0x2B5E:'i2c_read_start', 0x2B66:'i2c_read_byte',
     0x2B83:'fdd_geom_index', 0x2BA5:'track_buf_ptr', 0x2BAB:'track_ptr_scale', 0x2BB7:'geom_sector_calc',
     0x2BEC:'show_radial_align', 0x2C04:'hrd_show_radial', 0x2C1E:'hrd_radial_ptr', 0x2CEE:'hrd_show_scaled',
+    # per-test LCD display formatters (hrd_test_tbl handler field; print value + units)
+    0x3025:'hrd_disp_radial', 0x3040:'hrd_disp_ecc', 0x304A:'hrd_disp_azimuth',
+    0x3060:'hrd_disp_positioner',   # spindle handler is the shared show_rpm_suffix (0x307A)
     0x2D2C:'hrd_rec_ptr', 0x2D5B:'hrd_radial_measure', 0x2EBA:'hrd_seek_read', 0x2FC0:'hrd_read_verify',
     0x2FD4:'hrd_result_verify', 0x2FDC:'chk_fdc_crc', 0x2FF1:'fdc_set_xfer_cnt', 0x307A:'show_rpm_suffix',
     0x33B2:'fdc_op_dispatch', 0x370E:'panel_bit6_on', 0x371B:'clr_ctrl_bit6', 0x3723:'set_fdc_pending',
@@ -519,6 +522,17 @@ RECORD_GROUPS = {
     0x3305: [11, 19, 43],  # fat12_template: jump+OEM 'Jumbo'(11), BPB/fs-type area(19), boot code+message(43)
 }
 
+# Inline annotation appended after a data-dump row that STARTS at the given
+# address (decodes structured records that are otherwise opaque hex).
+ROW_NOTES = {
+    # hrd_test_tbl records: {scale K:word, display handler:word, result mask:byte}
+    0x3186: 'radial      K=422  handler=hrd_disp_radial      mask=0x0F',
+    0x318B: 'eccentric.  K=422  handler=hrd_disp_ecc         mask=0x03',
+    0x3190: 'azimuth     K=696  handler=hrd_disp_azimuth     mask=0x0F',
+    0x3195: 'positioner  K=422  handler=hrd_disp_positioner  mask=0x0F',
+    0x319A: 'spindle     K=1    handler=show_rpm_suffix      mask=0x0F',
+}
+
 def dump_data(b, start, end):
     """Hex+ASCII dump of a data region; emit a label at each named symbol and
     lay out rows per RECORD_GROUPS / RECORD_STRIDE (default 16) so record
@@ -539,7 +553,8 @@ def dump_data(b, start, end):
             row = b[x:min(x+n, run_end)]
             hexs = ' '.join('%02X'%y for y in row)
             asc  = ''.join(chr(y) if 0x20<=y<=0x7E else '.' for y in row)
-            print('%04X  %-47s |%s|'%(x, hexs, asc))
+            note = '   ; %s'%ROW_NOTES[x] if x in ROW_NOTES else ''
+            print('%04X  %-47s |%s|%s'%(x, hexs, asc, note))
             x += len(row)
         a = run_end
 
@@ -1127,7 +1142,7 @@ COMMENTS.update({
     0x3173:'serialization: write-buffer address (word)',
     0x3175:'serialization: image pointer for the serial stamp (word)',
     0x3178:'HRD head/model index',
-    0x3186:'HRD test descriptor records, 5 bytes each (limits + string ptr)',
+    0x3186:'hrd_test_tbl: 5 per-test records { scale K:word, display handler:word, result mask:byte } (idx 0-4 = radial/eccentricity/azimuth/positioner/spindle)',
     0x319F:'spindle index-period timer residual (read back from 8253)',
     0x31A1:'HRD measured value for head 0 (um)',
     0x31A3:'HRD measured value for head 1 (um)',

@@ -641,7 +641,11 @@
 2FF1  fdc_set_xfer_cnt
 3008  hrd_find_burst
 300E  loc_300E
+3025  hrd_disp_radial
 303B  loc_303B
+3040  hrd_disp_ecc
+304A  hrd_disp_azimuth
+3060  hrd_disp_positioner
 307A  show_rpm_suffix
 3084  hrd_median_filter
 3086  loc_3086

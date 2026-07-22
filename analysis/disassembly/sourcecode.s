@@ -6187,18 +6187,26 @@ loc_300E:
 3021  E6 1F         AND 0x1F
 3023  67            LD H,A
 3024  C9            RET
+
+hrd_disp_radial:
 3025  CD 59 4C      CALL lcd_print
 3028  1B C0 48 64 30 1B +  DB ESC(0xC0), "Hd0", ESC(0xC7), \x01, "m", ESC(0xCB), "Hd1", ESC(0xD2), \x01, "m", 0
 
 loc_303B:
 303B  3E 01         LD A,0x01
 303D  C3 89 4D      JP get_key
+
+hrd_disp_ecc:
 3040  CD 59 4C      CALL lcd_print
 3043  1B C7 01 6D 00  DB ESC(0xC7), \x01, "m", 0
 3048  18 F1         JR loc_303B
+
+hrd_disp_azimuth:
 304A  CD 59 4C      CALL lcd_print
 304D  1B C0 48 64 30 1B +  DB ESC(0xC0), "Hd0", ESC(0xC7), "'", ESC(0xCB), "Hd1", ESC(0xD2), "'", 0
 305E  18 DB         JR loc_303B
+
+hrd_disp_positioner:
 3060  CD 59 4C      CALL lcd_print
 3063  1B C0 68 79 73 74 +  DB ESC(0xC0), "hystheresis   ", ESC(0xD2), \x01, "m", 0
 3078  18 C1         JR loc_303B
@@ -6472,13 +6480,13 @@ serial_ptr:
 ; HRD head/model index
 hrd_model_idx:
 3178  00 00 10 27 14 22 20 4F 2C 4C 28 4F 2C 4C       |...'." O,L(O,L|
-; HRD test descriptor records, 5 bytes each (limits + string ptr)
+; hrd_test_tbl: 5 per-test records { scale K:word, display handler:word, result mask:byte } (idx 0-4 = radial/eccentricity/azimuth/positioner/spindle)
 hrd_test_tbl:
-3186  A6 01 25 30 0F                                  |..%0.|
-318B  A6 01 40 30 03                                  |..@0.|
-3190  B8 02 4A 30 0F                                  |..J0.|
-3195  A6 01 60 30 0F                                  |..`0.|
-319A  01 00 7A 30 0F                                  |..z0.|
+3186  A6 01 25 30 0F                                  |..%0.|   ; radial      K=422  handler=hrd_disp_radial      mask=0x0F
+318B  A6 01 40 30 03                                  |..@0.|   ; eccentric.  K=422  handler=hrd_disp_ecc         mask=0x03
+3190  B8 02 4A 30 0F                                  |..J0.|   ; azimuth     K=696  handler=hrd_disp_azimuth     mask=0x0F
+3195  A6 01 60 30 0F                                  |..`0.|   ; positioner  K=422  handler=hrd_disp_positioner  mask=0x0F
+319A  01 00 7A 30 0F                                  |..z0.|   ; spindle     K=1    handler=show_rpm_suffix      mask=0x0F
 
 ; spindle index-period timer residual (read back from 8253)
 rpm_residual:

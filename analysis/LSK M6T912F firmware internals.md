@@ -168,12 +168,15 @@ The selected type (`hrd_test_idx`, 0–4) maps 1:1 onto a record of the ROM tabl
 |---|---|---|---|
 | 0 | Radial alignment (3 tracks) | 422 | µm |
 | 1 | Eccentricity | 422 | µm |
-| 2 | Head azimuth | 696 | angular |
+| 2 | Head azimuth | 696 | arc-min (`'`) |
 | 3 | Positioner "hystheresis" *(sic in ROM)* | 422 | µm |
 | 4 | Spindle motor speed | 1 | RPM (raw) |
 
 Each 5-byte record is `{ scale K : word, handler address : word, result mask : byte }`; the handler
-field is reached by a computed jump (`PUSH DE; RET`, 0x2CED).
+field is reached by a computed jump (`PUSH DE; RET`, 0x2CED) and points to the per-test LCD formatter
+(`hrd_disp_radial`/`_ecc`/`_azimuth`/`_positioner`, and the shared `show_rpm_suffix` for spindle).
+The formatters fix the displayed units: radial/eccentricity/positioner in **µm**, azimuth in
+**arc-minutes** (`'`), spindle in **rpm**.
 
 **Measurement pipeline** (`hrd_radial_measure` 0x2D5B): seek the alignment track and capture **four
 read windows** into the image buffer — head 0 reads A/B at `image_buf+0x0000`/`+0x2000`, head 1 at
