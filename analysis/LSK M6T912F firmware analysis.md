@@ -189,7 +189,7 @@ which board signal, and the meaning of the don't-care high bits — all need the
 
 | # | Addr | Action |
 |---|---|---|
-| 1 | 0000 | Init 8237 DMA (`OUT 0x88,0xA0`; `0x8D,0x8F=0x0F`), `SP=0x8000`, **select bank 0xFF (program-RAM window)** via `OUT 0xB0/0xC0,0xFF` |
+| 1 | 0000 | Init 8237 DMA (`OUT 0x88,0xA0`; `0x8D,0x8F=0x0F`), `SP=0x8000`, **select DRAM bank 0xFF (program-RAM window)** via `OUT 0xB0,0xFF`; then `OUT 0xC0,0xFF` (a *separate* one-shot control-latch init — see port map) |
 | 2 | 001D | `LDIR` copies EPROM 0x0022–0x6021 → **bank 0xFF** at 0x8022, then `JP 0x8022` (runs the copy in bank 0xFF's window) |
 | 3 | 0022 | `OUT 0x9C,0x92` fixes bank 0xFF at 0x0000–0x7FFF (EPROM drops out; bank decoupled from later `0xB0` changes) → `JP 0x0100` |
 | 4 | 0105 | Checksum RAM copy (sum 0x0100–0x52EF). Mismatch → **"CODE TRANSFER ERROR"**, retry |
@@ -215,6 +215,7 @@ of the four FDCs.
 | E0 | HD44780 LCD | instruction reg (RS=0), bit7=busy | `lcd_init` `0x4B99`, printer `0x4C59`, busy-wait `0x4C2A` | [V] |
 | E8 | HD44780 LCD | data reg (RS=1); presence self-test (write `0x55`, read back) | `lcd_byte_out` `0x4C43` with C=0xE8; probe `0x4BCC`, readback `0x4BDD` → headless on mismatch | [V] |
 | B0 | DRAM bank latch | image-buffer 32 KB bank select | DRAM sizing `OUT (0xB0),A` @0x03EE; per-track bank before every 0x8000 access (`0x0E49/0x1D55/0x1CEC`) | [V] |
+| C0 | control latch — **boot init only** | written `0xFF` once at boot (with the B0 bank latch), never read or re-written | only `OUT (0xC0),0xFF` @0x0012; sits in the drive/FDC-control block (C2 precomp, C3 rate, C6 drive-sel-b); reads as an all-ones idle/deselect init but **exact function isn't determinable from firmware** | [?] |
 | 9C | control/mode latch | boot memory-mode (`0x92`); host bulk-channel strobe (`0x0E/0x0F`); drive/analog control (`0x04`) | `OUT 0x9C,0x92` at boot; strobe in `0x216A`; exact bit-map unresolved | [R] |
 | 90/94 | bulk channel | image data-in / ready (bit6) | download `0x216A`, `0xAA55` frame sync | [R] |
 | B1/C2/C3 | FDC glue | data-rate / precomp select | precomp init `0x0980` (250/500 kbps) | [R] |
