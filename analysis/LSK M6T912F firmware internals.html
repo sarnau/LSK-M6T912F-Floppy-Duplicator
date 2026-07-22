@@ -293,7 +293,7 @@
   <section id="hrd">
     <div class="snum">C</div>
     <h2>HRD diagnostics &amp; the 8253 timer</h2>
-    <p>The 8253's counter 0 (mode 3, ÷13) produces <b>153 846 Hz</b> — both the USART baud clock
+    <p>The 8253's counter 0 (mode 3, ÷13) produces <b>153 846 Hz</b> — both the Z80 SIO baud clock
       <em>and</em> the cascade clock into counters 1 &amp; 2, which are used as interval timers. Counter 1
       (<code>0xA4</code>) times head 0; counter 2 (<code>0xA8</code>) times head 1.</p>
 
@@ -306,9 +306,9 @@
 3917  SBC HL,DE                   <span class="c">; elapsed ticks = 0xFFFF - residual</span>
 <span class="c">; then:  RPM = 0x008CD9B1 / ticks  =  9,230,769 / ticks</span></pre>
     <p><code>9 230 769 = 60 × (2 MHz ÷ 13)</code> — an exact integer match that pins the counter clock
-      and confirms a <b>2 MHz master</b> (<span class="chip c-unc">Uncertain</span>: inferred, not in
-      ROM). Checks: 300 RPM → 30 769 ticks; 360 RPM → 25 641 ticks. Comfortably inside 16 bits, which
-      is exactly why the ÷13 clock is cascaded rather than the raw 2 MHz.</p>
+      and the <b>2 MHz</b> 8253 input, which the board derives as <b>32.000 MHz ÷ 16</b> (the board
+      carries 32 MHz + 48 MHz crystals). Checks: 300 RPM → 30 769 ticks; 360 RPM → 25 641 ticks.
+      Comfortably inside 16 bits, which is exactly why the ÷13 clock is cascaded rather than the raw 2 MHz.</p>
 
     <h4>The alignment-diagnostic suite (no ADC)</h4>
     <p>The <b>HRD diagnostics</b> menu (<code>hrd_menu</code> 0x1540) offers five measurement types,

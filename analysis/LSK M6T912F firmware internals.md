@@ -147,15 +147,16 @@ an earlier build (or read only by an externally-downloaded program, which is out
 
 ## C. HRD diagnostics & the 8253 timer
 
-8253 counter 0 (mode 3, ÷13) = **153 846 Hz** — USART baud clock *and* the cascade clock into
+8253 counter 0 (mode 3, ÷13) = **153 846 Hz** — Z80 SIO baud clock *and* the cascade clock into
 counters 1 & 2 (interval timers; c1=head0, c2=head1).
 
 **Spindle RPM** (`0x37DB` → `0x2E72`): preload counter 0xFFFF (mode 2), gate one index-to-index
 revolution, latch (ctrl 0x84), read residual, `elapsed = 0xFFFF − residual`, then
 `RPM = 0x008CD9B1 / ticks = 9 230 769 / ticks`.
 
-`9 230 769 = 60 × (2 MHz ÷ 13)` — exact integer match → confirms the counter clock and a **2 MHz
-master** `[?]` (inferred). Checks: 300 RPM → 30 769 ticks; 360 RPM → 25 641 ticks.
+`9 230 769 = 60 × (2 MHz ÷ 13)` — exact integer match → confirms the counter clock and the **2 MHz**
+8253 input, which the board derives as **32.000 MHz ÷ 16** (the board carries 32 MHz + 48 MHz
+crystals). Checks: 300 RPM → 30 769 ticks; 360 RPM → 25 641 ticks.
 
 ### The alignment-diagnostic suite
 

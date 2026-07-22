@@ -29,16 +29,21 @@ Origin markers in the strings — `Adresa =` (Czech/Slovak/Croatian "address"), 
 | CPU | Zilog Z0840006 (Z80, 6 MHz) | — | Main processor, interrupt mode 1 | [V] |
 | Floppy ×4 | SMC FDC37C65C | 00/10/20/30 | Four µPD765-compatible controllers | [V] |
 | DMA | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] |
-| Timer | NEC D8253 PIT | A0–AC | Baud clock + interval measurement | [V] |
-| Serial ×2 | USART (8251-class) | D0–DC | Autoloader link + host link | [V] |
-| Parallel I/O | µPD71055 PPI · Z8420 PIO | 40–70, B0–C6 | Drive select, motor, sensors, precomp | [?] |
+| Timer | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] |
+| Serial | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] |
+| Parallel I/O | NEC µPD71055 PPI · Zilog Z8420 PIO | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate — **both chips confirmed on board** | [V] |
 | Display | HD44780 LCD (2×20) | E0/E8 | Front-panel character display | [V] |
-| Image DRAM | 2× 4 MB 30-pin SIMM (parity-sim) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] |
+| Image DRAM | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] |
 | Line driver | Microchip TC232 | — | RS-232 level shifting | [R] |
 
-The PPI/PIO pair is present per the datasheets and drives the digital motor/select/sense lines,
-but the traced code uses those ports as plain latches without a distinctive mode-word init, so the
-exact chip-to-port split isn't pinned from firmware alone.
+The PPI/PIO pair (µPD71055 + Z8420) is confirmed on the board and drives the digital
+motor/select/sense lines; the traced code uses those ports as plain latches without a distinctive
+mode-word init, so the exact chip-to-port split isn't pinned from firmware alone (a minor residual).
+
+The board itself is a **Terra Computer Systems KDP-05 B** (Czech Republic, © 1993) — the "LSK M6T912F"
+is the LSK-branded build. Clocking: **32.000 MHz** and **48.000 MHz** crystals; the 8253's 2 MHz input
+is 32 MHz ÷ 16. Address decode is handled by a GAL20V8B + PALCE20V8H. All larger parts are confirmed
+against on-board markings and manufacturer datasheets.
 
 ## 3. Memory architecture
 
@@ -194,7 +199,7 @@ which board signal, and the meaning of the don't-care high bits — all need the
 | 2 | 001D | `LDIR` copies EPROM 0x0022–0x6021 → **bank 0xFF** at 0x8022, then `JP 0x8022` (runs the copy in bank 0xFF's window) |
 | 3 | 0022 | `OUT 0x9C,0x92` fixes bank 0xFF at 0x0000–0x7FFF (EPROM drops out; bank decoupled from later `0xB0` changes) → `JP 0x0100` |
 | 4 | 0105 | Checksum RAM copy (sum 0x0100–0x52EF). Mismatch → **"CODE TRANSFER ERROR"**, retry |
-| 5 | 4DD9 | `IM 1`; program 8253 counter 0 (baud) + c1/c2; init both USARTs; drain receivers |
+| 5 | 4DD9 | `IM 1`; program 8253 counter 0 (baud) + c1/c2; init both Z80 SIO channels; drain receivers |
 | 6 | 03DD | Size DRAM banks → **"Test dram: N kB"** |
 | 7 | 0432 | Detect FDDs, load format descriptor. Bad config → **"Unsupported FDD / Run config again"** |
 | 8 | 0235 | Enter **Autoloader** or **Manual** operating mode |
@@ -211,8 +216,8 @@ of the four FDCs.
 | 80–8F | µPD8237A DMA | ch0–3 addr/count (80–87), cmd/status 88, mode 8B, mask 8A/8E/8F, clear-ff 8C, mclr 8D | arm `dma_arm_channel` 0x4401 (bit7 of selector → ch0/1 @0x441B or ch2/3 @0x4408); reset `OUT 0x88,0xA0` | [V] |
 | A0/A4/A8 | 8253 PIT | counter 0 / 1 / 2 | ctrl words `16/50/90` select each counter | [V] |
 | AC | 8253 PIT | control register | c0 mode-3 baud (÷13); c1/c2 mode-2 RPM/hysteresis timing | [V] |
-| D0/D4 | USART A | data / status — autoloader (disk-handling motors + sensors) | TX `BIT 2`, RX `BIT 0`, `RES/SET 2,C` at `0x4E42` | [V] |
-| D8/DC | USART B | data / status — host | same cores, C=0xD8/0xDC | [V] |
+| D0/D4 | Z80 SIO ch A | data (D0) / control+status (D4) — autoloader | Tx `BIT 2` (RR0 Tx-empty), Rx `BIT 0` (RR0 Rx-avail), data port = control `& ~4` (`RES/SET 2,C`, `0x4E42`); errors via WR0-ptr→RR1 `AND 0x70`; `WR0=0x30` error-reset | [V] |
+| D8/DC | Z80 SIO ch B | data (D8) / control+status (DC) — host | same SIO cores, C=0xD8/0xDC | [V] |
 | E0 | HD44780 LCD | instruction reg (RS=0), bit7=busy | `lcd_init` `0x4B99`, printer `0x4C59`, busy-wait `0x4C2A` | [V] |
 | E8 | HD44780 LCD | data reg (RS=1); presence self-test (write `0x55`, read back) | `lcd_byte_out` `0x4C43` with C=0xE8; probe `0x4BCC`, readback `0x4BDD` → headless on mismatch | [V] |
 | B0 | DRAM bank latch | image-buffer 32 KB bank select | DRAM sizing `OUT (0xB0),A` @0x03EE; per-track bank before every 0x8000 access (`0x0E49/0x1D55/0x1CEC`) | [V] |
@@ -260,7 +265,7 @@ capability of the FDC37C65C is present in silicon but no ED format ships in this
 
 ## 7. Serial & protocols
 
-Two independent USART channels, both 9600 8N1, fully polled (no interrupt ring buffers). Channel A
+Two independent Z80 SIO channels, both 9600 8N1, fully polled (no interrupt ring buffers). Channel A
 = autoloader; channel B = host. A third channel (0x90/0x94/0x9C, `0xAA55`-framed) carries bulk
 image data.
 
@@ -397,15 +402,14 @@ Three 14-byte version fields (7-char module name + date) are indexed by a **poin
 
 ## 10. Open questions
 
-Three genuine unknowns remain — all require the board schematic; the firmware carries no
-distinguishing evidence:
+One genuine unknown remains (the board photo + datasheets resolved the other two):
 
-- **PPI vs PIO ownership of 0x40/0x50/0x60/0x70 (and 0xC6)** `[hardware]` — used purely as write-only drive-select/motor/bank latches (per-drive values from `drive_blk_a/b+0x7` reach `0xB0`/`0xC6`); the firmware never reads them or sends a mode/control word (which both an 8255 and a Z8420 require to set direction), so the chip can't be identified from code.
-- **Exact USART part** `[hardware]` — status bits (RxRDY=b0, TxRDY=b2, errors b4–6) and reset byte `0x30` read 8251-class; no mode/baud init on 0xD0–0xDC (baud from the 8253). Needs the board.
-- **Port 0xC0's function** `[hardware]` — written `0xFF` **exactly once** at boot (`0x0012`, alongside the `0xB0` bank latch) and never read or re-written. Lives in the drive/FDC-control block (`0xC2` precomp, `0xC3` rate, `0xC6` drive-sel-b); `0xFF` reads as an all-ones idle/deselect init, but with no dynamic use its exact role can't be pinned from firmware. (§5)
+- **Port 0xC0's function** `[hardware]` — written `0xFF` **exactly once** at boot (`0x0012`, alongside the `0xB0` bank latch) and never read or re-written. Lives in the drive/FDC-control block (`0xC2` precomp, `0xC3` rate, `0xC6` drive-sel-b); `0xFF` reads as an all-ones idle/deselect init, but with no dynamic use its exact role can't be pinned from firmware. Likely a µPD71055/Z8420 port or a control latch in that group — a PCB trace-follow would settle it. (§5)
 
 **Resolved during analysis** (were open in earlier revisions):
 
+- **Serial controller = Zilog Z80 SIO/0** (Z0844006PSC), *not* an 8251 — confirmed by the board photo **and** the firmware's SIO register model: Tx via RR0 bit 2, Rx via RR0 bit 0, data port = control port with A2 cleared (`RES/SET 2,C`), errors read from RR1 (WR0-pointer=1, mask `0x70`), and `WR0=0x30` error-reset. One SIO carries both channels (A = autoloader `0xD0/D4`, B = host `0xD8/DC`); the 8253 supplies the external baud clock. (§2, §5)
+- **Parallel I/O = µPD71055 PPI + Z8420 PIO**, both confirmed on the board (photo + datasheets). The `0x40–0x70`/`B0`/`C6` latches split across the two; the firmware's write-only usage doesn't reveal the exact port-to-chip mapping, but the chips are no longer in doubt. (§2)
 - **0x9C is an 8-line addressable latch** (decode `data = bit0, select = bits [3:1]`) — line 1 EPROM/RAM map, line 2 write-protect, lines 4/5 per-drive datarate, line 6 static drive/write enable, line 7 FDC result-read strobe (§3). *Residual (still needs the board):* the physical A0–A2 ordering and which board signal each line drives.
 - **0xB0** is a flat 8-bit DRAM bank latch — no drive-select field; drive UNIT/HEAD select is in the FDC `HD/US` command byte. (§5; internals §B)
 - **0xE8 / 0x55** is an LCD presence/health self-test with a headless fallback, not a board-ID strap.
