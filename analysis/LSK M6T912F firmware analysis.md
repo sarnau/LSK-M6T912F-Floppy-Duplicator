@@ -266,9 +266,13 @@ capability of the FDC37C65C is present in silicon but no ED format ships in this
 
 ## 7. Serial & protocols
 
-Two independent Z80 SIO channels, both 9600 8N1, fully polled (no interrupt ring buffers). Channel A
-= autoloader; channel B = host. A third channel (0x90/0x94/0x9C, `0xAA55`-framed) carries bulk
-image data.
+Two independent Z80 SIO channels at 9600 baud (×16 clock from the 8253), fully polled (no interrupt
+ring buffers). Each channel is set up at boot by `OTIR`-ing a 13-byte WR-register blob to its control
+port (`al_ser_blob`→0xD4, `host_ser_blob2`→0xDC): channel-reset, WR3/WR4/WR5/WR1, then enable Rx+Tx
+with RTS/DTR. Framing is 8 data bits, 1 stop; the **autoloader channel is 8N1**, and the **host
+channel switches parity per operation** (boots 8O1; `host_ser_blob0/1` reprogram it 8N1/8O1).
+Channel A = autoloader; channel B = host. A third channel (0x90/0x94/0x9C, `0xAA55`-framed) carries
+bulk image data.
 
 ### Autoloader — machine is the client (disk-handling mechanism)
 
@@ -409,7 +413,7 @@ One genuine unknown remains (the board photo + datasheets resolved the other two
 
 **Resolved during analysis** (were open in earlier revisions):
 
-- **Serial controller = Zilog Z80 SIO/0** (Z0844006PSC), *not* an 8251 — confirmed by the board photo, the **Zilog Z8440/Z84C40 SIO datasheet** (`Zilog Z0844006PSC SIO.pdf`, in the repo — the `Z0844x06` = 6 MHz Z80 SIO, SIO/0 bonding), **and** the firmware's SIO register model: Tx via RR0 bit 2, Rx via RR0 bit 0, data port = control port with A2 cleared (`RES/SET 2,C`), errors read from RR1 (WR0-pointer=1, mask `0x70`), and `WR0=0x30` error-reset. One SIO carries both channels (A = autoloader `0xD0/D4`, B = host `0xD8/DC`); the 8253 supplies the external x1 baud clock. (§2, §5)
+- **Serial controller = Zilog Z80 SIO/0** (Z0844006PSC), *not* an 8251 — confirmed by the board photo, the **Zilog Z8440/Z84C40 SIO datasheet** (`Zilog Z0844006PSC SIO.pdf`, in the repo — the `Z0844x06` = 6 MHz Z80 SIO, SIO/0 bonding), **and** the firmware's SIO register model: Tx via RR0 bit 2, Rx via RR0 bit 0, data port = control port with A2 cleared (`RES/SET 2,C`), errors read from RR1 (WR0-pointer=1, mask `0x70`), and `WR0=0x30` error-reset. One SIO carries both channels (A = autoloader `0xD0/D4`, B = host `0xD8/DC`); the 8253 supplies the external clock in ×16 mode (153,846 Hz ÷ 16 ≈ 9600 baud). (§2, §5)
 - **Parallel I/O = a single µPD71055 PPI** (no Z8420 PIO — an earlier mis-assumption from a spurious datasheet, since removed). The `0x40–0x70`/`B0`/`C6` write-only latches are PPI ports and/or discrete 74HCT373s; the firmware's write-only usage doesn't reveal the exact split, but the parallel-interface chip is the PPI. (§2)
 - **0x9C is an 8-line addressable latch** (decode `data = bit0, select = bits [3:1]`) — line 1 EPROM/RAM map, line 2 write-protect, lines 4/5 per-drive datarate, line 6 static drive/write enable, line 7 FDC result-read strobe (§3). *Residual (still needs the board):* the physical A0–A2 ordering and which board signal each line drives.
 - **0xB0** is a flat 8-bit DRAM bank latch — no drive-select field; drive UNIT/HEAD select is in the FDC `HD/US` command byte. (§5; internals §B)
