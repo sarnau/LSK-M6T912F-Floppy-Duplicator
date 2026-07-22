@@ -25,7 +25,7 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
   the program-RAM mirror.
 - **Chipset:** 4× SMC FDC37C65C floppy controllers, NEC µPD8237A DMA (one channel per FDC),
   NEC µPD8253C PIT, a Zilog **Z80 SIO** (dual-channel serial: autoloader + host), HD44780 2×20 LCD,
-  µPD71055 PPI + Z8420 PIO drive latches, and a `0x9C` 8-line addressable control latch. The board is
+  a µPD71055 PPI + 74HCT373 drive latches, and a `0x9C` 8-line addressable control latch. The board is
   a Terra Computer Systems **KDP-05 B** (Czech Republic, © 1993); the LSK M6T912F is the LSK-branded build.
 - **Modes:** front-panel **Manual**, **Autoloader** (serial), and a **host remote-control** protocol
   (the machine acts as the server).
@@ -42,7 +42,6 @@ datasheets are included for reference.
 | NEC µPD8253C-2 | Programmable interval timer (baud + spindle timing) | A0–AC | `NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
 | Zilog Z80 SIO/0 (Z0844006PSC) | Dual-channel serial — autoloader + host | D0–DC | `Zilog Z0844006PSC SIO.pdf` · `Zilog Z80SIO Technica Manual.pdf` |
 | NEC µPD71055 | Parallel interface unit (PPI) — drive/motor lines | 40–70, B0–C6 | `NEC µPD71055 Parallel Interface Unit.pdf` |
-| Zilog Z8420 | Z80 PIO — drive/motor lines | 40–70, B0–C6 | `Zilog Z8420 Parallel Input-Output.pdf` |
 | Zilog Z80 CPU (Z0840006PSC) | Main processor (6 MHz, IM 1) | — | `Zilog Z0840006PSC Z80 CPU.pdf` |
 | Hitachi HD44780 | 2×20 character LCD | E0/E8 | `Hiatchi HD44780 LCD.pdf` |
 | Microchip TC232 | RS-232 line driver | — | `Microchip TC232CPE RS232.PDF` |
@@ -64,10 +63,6 @@ Approximate placement of the major chips on the front side, read from `PCB Front
 | Bottom-left | NEC µPD71055 PPI (directly above the SIO); Zilog Z80 SIO/0 (Z0844006PSC); Microchip TC232 line driver |
 | Bottom-center | Zilog Z80 CPU (Z0840006PSC); the M6T912F firmware EPROM (windowed, "D1/97"); PALCE20V8H (address-decode PLD) |
 | Right | 2× AS4C14400 DRAM SIMMs (8 MB image buffer); banks of 74HCT373 / 74HCT157 latches |
-
-*Not individually pinned in the front photo:* the Zilog Z8420 PIO is datasheet-confirmed present, but
-its marking on the remaining 40-pin DIP wasn't legible enough to place with confidence from a single
-top-side image.
 
 ## Regenerating the disassembly
 

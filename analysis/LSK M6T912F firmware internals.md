@@ -275,5 +275,5 @@ jumps to the shared run loop.
 
 *Method: each subsystem traced independently then cross-checked; the 0xB0-vs-0x9C banking correction
 was verified against the boot DRAM-sizing loop before being folded into the main analysis. Datasheets
-used for register-level confirmation: SMC FDC37C65C, µPD8237A DMA, µPD71055 PPI, Z8420 PIO, 8253 PIT,
+used for register-level confirmation: SMC FDC37C65C, µPD8237A DMA, µPD71055 PPI, 8253 PIT,
 Z80 CPU, HD44780 LCD — the µPD8237A confirmed the 0x80-base DMA register map and one-channel-per-FDC layout.*

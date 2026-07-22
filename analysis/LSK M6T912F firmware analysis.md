@@ -31,14 +31,15 @@ Origin markers in the strings — `Adresa =` (Czech/Slovak/Croatian "address"), 
 | DMA | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] | `NEC D8237A DMA Controller.pdf` |
 | Timer | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] | `NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
 | Serial | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] | `Zilog Z0844006PSC SIO.pdf` · `Zilog Z80SIO Technica Manual.pdf` |
-| Parallel I/O | NEC µPD71055 PPI · Zilog Z8420 PIO | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate — **both chips confirmed on board** | [V] | `NEC µPD71055 Parallel Interface Unit.pdf` · `Zilog Z8420 Parallel Input-Output.pdf` |
+| Parallel I/O | NEC µPD71055 PPI (+ 74HCT373 latches) | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate | [V] | `NEC µPD71055 Parallel Interface Unit.pdf` |
 | Display | HD44780 LCD (2×20) | E0/E8 | Front-panel character display | [V] | `Hiatchi HD44780 LCD.pdf` |
 | Image DRAM | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `AS4C14400 1M×4 RAM.PDF` |
 | Line driver | Microchip TC232 | — | RS-232 level shifting | [R] | `Microchip TC232CPE RS232.PDF` |
 
-The PPI/PIO pair (µPD71055 + Z8420) is confirmed on the board and drives the digital
-motor/select/sense lines; the traced code uses those ports as plain latches without a distinctive
-mode-word init, so the exact chip-to-port split isn't pinned from firmware alone (a minor residual).
+The parallel I/O is a **single µPD71055 PPI** (there is no Z8420 PIO — an earlier assumption that has
+been corrected); together with discrete 74HCT373 latches it drives the digital motor/select/sense
+lines. The traced code writes those ports as plain write-only latches without a distinctive mode-word
+init, so the exact PPI-vs-373 split per port isn't pinned from firmware alone (a minor residual).
 
 The board itself is a **Terra Computer Systems KDP-05 B** (Czech Republic, © 1993) — the "LSK M6T912F"
 is the LSK-branded build. Clocking: **32.000 MHz** and **48.000 MHz** crystals; the 8253's 2 MHz input
@@ -225,7 +226,7 @@ of the four FDCs.
 | 9C | control/mode latch | boot memory-mode (`0x92`); host bulk-channel strobe (`0x0E/0x0F`); drive/analog control (`0x04`) | `OUT 0x9C,0x92` at boot; strobe in `0x216A`; exact bit-map unresolved | [R] |
 | 90/94 | bulk channel | image data-in / ready (bit6) | download `0x216A`, `0xAA55` frame sync | [R] |
 | B1/C2/C3 | FDC glue | data-rate / precomp select | precomp init `0x0980` (250/500 kbps) | [R] |
-| 40/50/60/70 B0/C6 | PPI / PIO | drive select · motor · side | reset `OUT 0x40/0x60,0x0E`; DOR builder `0x3CD3` | [?] |
+| 40/50/60/70 B0/C6 | µPD71055 PPI / 74HCT373 | drive select · motor · side | reset `OUT 0x40/0x60,0x0E`; DOR builder `0x3CD3` | [?] |
 | 94/98/F0 | panel + EEPROM | 4 keys · beeper · serial NVRAM | key scan `0x4D0B`; key decode `0x4590`; beeper on `0xF0`; EEPROM `0x2ACB` | [R] |
 
 **Corrected during analysis** — direct disassembly settled three initially-disputed assignments:
@@ -409,7 +410,7 @@ One genuine unknown remains (the board photo + datasheets resolved the other two
 **Resolved during analysis** (were open in earlier revisions):
 
 - **Serial controller = Zilog Z80 SIO/0** (Z0844006PSC), *not* an 8251 — confirmed by the board photo, the **Zilog Z8440/Z84C40 SIO datasheet** (`Zilog Z0844006PSC SIO.pdf`, in the repo — the `Z0844x06` = 6 MHz Z80 SIO, SIO/0 bonding), **and** the firmware's SIO register model: Tx via RR0 bit 2, Rx via RR0 bit 0, data port = control port with A2 cleared (`RES/SET 2,C`), errors read from RR1 (WR0-pointer=1, mask `0x70`), and `WR0=0x30` error-reset. One SIO carries both channels (A = autoloader `0xD0/D4`, B = host `0xD8/DC`); the 8253 supplies the external x1 baud clock. (§2, §5)
-- **Parallel I/O = µPD71055 PPI + Z8420 PIO**, both confirmed on the board (photo + datasheets). The `0x40–0x70`/`B0`/`C6` latches split across the two; the firmware's write-only usage doesn't reveal the exact port-to-chip mapping, but the chips are no longer in doubt. (§2)
+- **Parallel I/O = a single µPD71055 PPI** (no Z8420 PIO — an earlier mis-assumption from a spurious datasheet, since removed). The `0x40–0x70`/`B0`/`C6` write-only latches are PPI ports and/or discrete 74HCT373s; the firmware's write-only usage doesn't reveal the exact split, but the parallel-interface chip is the PPI. (§2)
 - **0x9C is an 8-line addressable latch** (decode `data = bit0, select = bits [3:1]`) — line 1 EPROM/RAM map, line 2 write-protect, lines 4/5 per-drive datarate, line 6 static drive/write enable, line 7 FDC result-read strobe (§3). *Residual (still needs the board):* the physical A0–A2 ordering and which board signal each line drives.
 - **0xB0** is a flat 8-bit DRAM bank latch — no drive-select field; drive UNIT/HEAD select is in the FDC `HD/US` command byte. (§5; internals §B)
 - **0xE8 / 0x55** is an LCD presence/health self-test with a headless fallback, not a board-ID strap.
