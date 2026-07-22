@@ -4862,7 +4862,7 @@ beep:
 2766  2A CD 52      LD HL,(iovec_beep)
 2769  E9            JP (HL)
 
-; BC-preserving wrapper to edit the two-head cyl-0 parameter table
+; BC-preserving wrapper to edit the two-head zone table (per head: 6 entries { cyl : low byte, rate flag : high byte 0/1/2 = N/L/H })
 hrd_head_edit:
 276A  C5            PUSH BC
 276B  CD 00 28      CALL hrd_edit_head_pair
@@ -4878,7 +4878,7 @@ hrd_row_head1:
 2777  32 92 27      LD (loc_2786+0xC),A
 277A  18 0A         JR loc_2786
 
-; render head-0 row: print 'H C-0' grid, format 5 cyl-0 sector values and N/L/H flag cells
+; render head-0 row: print 'H C-0' grid, then the zone entries - low byte of each word = value (hrd_fmt_num), high byte = N/L/H rate flag
 hrd_row_head0:
 277C  E5            PUSH HL
 277D  C5            PUSH BC
@@ -10270,16 +10270,16 @@ drive_blk_b:
 dma_ptr_save:
 4B21  00 00 00 00 00 00 00 00                         |........|
 
-; fmt_geom_recs: default geometry for the configurable "Special formats" - 4 format blocks x 24 bytes (2x 12-byte records = .a/.b), selected via drive_index_bits (cfg_byte / format_desc) and copied to the 0x31A1 working block by the user/default config menu. Read-only. 6 LE words/record (word0=0; exact field semantics not fully pinned)
+; fmt_geom_recs: "Special format" per-head zone tables (default set). 4 formats x 2 records (.a=head0, .b=head1); each record = 6 zone entries { cyl : low byte, rate flag : high byte, 0/1/2 = N/L/H } rendered as cyl/flag by the head-pair editor (hrd_row_head0/1). Selected via drive_index_bits (cfg_byte / format_desc), copied to the 0x31A1 working block and edited by hrd_edit_head_pair. Read-only defaults
 fmt_geom_recs:
-4B29  00 00 21 01 28 00 28 00 28 00 28 00             |..!.(.(.(.(.|   ; fmt0.a  words: 0  289   40   40   40   40
-4B35  00 00 1E 01 28 00 28 00 28 00 28 00             |....(.(.(.(.|   ; fmt0.b  words: 0  286   40   40   40   40
-4B41  00 00 12 01 2C 00 36 01 4B 02 50 00             |....,.6.K.P.|   ; fmt1.a  words: 0  274   44  310  587   80
-4B4D  00 00 12 01 27 02 2C 01 43 02 50 00             |....'.,.C.P.|   ; fmt1.b  words: 0  274  551  300  579   80
-4B59  00 00 50 00 50 00 50 00 50 00 50 00             |..P.P.P.P.P.|   ; fmt2.a  words: 0   80   80   80   80   80
-4B65  00 00 50 00 50 00 50 00 50 00 50 00             |..P.P.P.P.P.|   ; fmt2.b  words: 0   80   80   80   80   80
-4B71  00 00 37 01 47 02 50 00 50 00 50 00             |..7.G.P.P.P.|   ; fmt3.a  words: 0  311  583   80   80   80
-4B7D  00 00 33 01 46 02 50 00 50 00 50 00             |..3.F.P.P.P.|   ; fmt3.b  words: 0  307  582   80   80   80
+4B29  00 00 21 01 28 00 28 00 28 00 28 00             |..!.(.(.(.(.|   ; fmt0 head0  cyl/rate: 0/N  33/L  40/N  40/N  40/N  40/N
+4B35  00 00 1E 01 28 00 28 00 28 00 28 00             |....(.(.(.(.|   ; fmt0 head1  cyl/rate: 0/N  30/L  40/N  40/N  40/N  40/N
+4B41  00 00 12 01 2C 00 36 01 4B 02 50 00             |....,.6.K.P.|   ; fmt1 head0  cyl/rate: 0/N  18/L  44/N  54/L  75/H  80/N
+4B4D  00 00 12 01 27 02 2C 01 43 02 50 00             |....'.,.C.P.|   ; fmt1 head1  cyl/rate: 0/N  18/L  39/H  44/L  67/H  80/N
+4B59  00 00 50 00 50 00 50 00 50 00 50 00             |..P.P.P.P.P.|   ; fmt2 head0  cyl/rate: 0/N  80/N  80/N  80/N  80/N  80/N
+4B65  00 00 50 00 50 00 50 00 50 00 50 00             |..P.P.P.P.P.|   ; fmt2 head1  cyl/rate: 0/N  80/N  80/N  80/N  80/N  80/N
+4B71  00 00 37 01 47 02 50 00 50 00 50 00             |..7.G.P.P.P.|   ; fmt3 head0  cyl/rate: 0/N  55/L  71/H  80/N  80/N  80/N
+4B7D  00 00 33 01 46 02 50 00 50 00 50 00             |..3.F.P.P.P.|   ; fmt3 head1  cyl/rate: 0/N  51/L  70/H  80/N  80/N  80/N
 
 ; current FDC data-rate register bits (ORed then OUT to 0xB1)
 fdc_rate_reg:

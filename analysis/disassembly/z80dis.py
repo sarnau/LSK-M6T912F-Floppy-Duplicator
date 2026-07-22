@@ -457,7 +457,7 @@ DATA_REGIONS = [
     (0x4AEB, 0x4B06, 'drive_blk_a'),      # drive-pair block A (27B): DOR/motor, DMA addr/count, geom
     (0x4B06, 0x4B21, 'drive_blk_b'),      # drive-pair block B (27B)
     (0x4B21, 0x4B29, 'dma_ptr_save'),     # 4x word DMA address/count save
-    (0x4B29, 0x4B89, 'fmt_geom_recs'),    # 4 'Special format' default-geometry blocks x 24B (2x 12-byte recs), read-only
+    (0x4B29, 0x4B89, 'fmt_geom_recs'),    # 4 'Special format' zone tables x 24B (head0/head1 recs of 6 {cyl,N/L/H} entries), read-only
     (0x4B89, 0x4B8A, 'fdc_rate_reg'),     # FDC data-rate register bits (OUT 0xB1)
     (0x4B8A, 0x4B8B, 'fdc_precomp_reg'),  # FDC write-precompensation value (OUT 0xC2)
     (0x224F, 0x2255, 'padding'),          # 6 bytes scratch/pad before show_curr_prefix
@@ -540,15 +540,15 @@ ROW_NOTES = {
     0x32CD: '180K 5.25" SS  360 sec    9 spt  1h  FC  root  64  spc 1  spf 2',
     0x32E0: '320K 5.25" DS  640 sec    8 spt  2h  FF  root 112  spc 2  spf 1',
     0x32F3: '360K 5.25" DS  720 sec    9 spt  2h  FD  root 112  spc 2  spf 2',
-    # fmt_geom_recs: 6 LE words per record; 4 formats x (record .a/.b); word0 always 0
-    0x4B29: 'fmt0.a  words: 0  289   40   40   40   40',
-    0x4B35: 'fmt0.b  words: 0  286   40   40   40   40',
-    0x4B41: 'fmt1.a  words: 0  274   44  310  587   80',
-    0x4B4D: 'fmt1.b  words: 0  274  551  300  579   80',
-    0x4B59: 'fmt2.a  words: 0   80   80   80   80   80',
-    0x4B65: 'fmt2.b  words: 0   80   80   80   80   80',
-    0x4B71: 'fmt3.a  words: 0  311  583   80   80   80',
-    0x4B7D: 'fmt3.b  words: 0  307  582   80   80   80',
+    # fmt_geom_recs: per-head zone table = 6 entries { cyl:lo-byte, rate flag:hi-byte 0/1/2=N/L/H }
+    0x4B29: 'fmt0 head0  cyl/rate: 0/N  33/L  40/N  40/N  40/N  40/N',
+    0x4B35: 'fmt0 head1  cyl/rate: 0/N  30/L  40/N  40/N  40/N  40/N',
+    0x4B41: 'fmt1 head0  cyl/rate: 0/N  18/L  44/N  54/L  75/H  80/N',
+    0x4B4D: 'fmt1 head1  cyl/rate: 0/N  18/L  39/H  44/L  67/H  80/N',
+    0x4B59: 'fmt2 head0  cyl/rate: 0/N  80/N  80/N  80/N  80/N  80/N',
+    0x4B65: 'fmt2 head1  cyl/rate: 0/N  80/N  80/N  80/N  80/N  80/N',
+    0x4B71: 'fmt3 head0  cyl/rate: 0/N  55/L  71/H  80/N  80/N  80/N',
+    0x4B7D: 'fmt3 head1  cyl/rate: 0/N  51/L  70/H  80/N  80/N  80/N',
 }
 
 def dump_data(b, start, end):
@@ -837,9 +837,9 @@ COMMENTS = {
     0x2725: "compute a drive's record offset (0x18*index + 4), returns low byte in C",
     0x2735: 'persist config block to serial EEPROM (bit-banged)',
     0x2766: 'beep via the iovec_beep vector (default buzzer_beep); beep count encodes the alert/error code',
-    0x276A: 'BC-preserving wrapper to edit the two-head cyl-0 parameter table',
+    0x276A: 'BC-preserving wrapper to edit the two-head zone table (per head: 6 entries { cyl : low byte, rate flag : high byte 0/1/2 = N/L/H })',
     0x2770: "render head-1 row of the head parameter table (sets prefix '1', buffer 0x31AF)",
-    0x277C: "render head-0 row: print 'H C-0' grid, format 5 cyl-0 sector values and N/L/H flag cells",
+    0x277C: "render head-0 row: print 'H C-0' grid, then the zone entries - low byte of each word = value (hrd_fmt_num), high byte = N/L/H rate flag",
     0x27E7: 'convert a byte to decimal (bin2dec_clear) and patch the digits into the head-table print buffer',
     0x27F5: 'print a formatted head-table number cell (BC-preserving lcd_print of patched inline bytes)',
     0x2800: 'render both head rows (0 and 1) of the head parameter table with framing escapes',
@@ -1242,7 +1242,7 @@ COMMENTS.update({
     0x4AEB: 'drive-pair block A (27 bytes): +7 DOR/motor, +8/9 DMA start address (8237 ch0x80), +10/11 DMA count',
     0x4B06: 'drive-pair block B (27 bytes): same layout, 8237 channel 0x82',
     0x4B21: '4 words: per-FDC DMA start-address / transfer-count save slots',
-    0x4B29: 'fmt_geom_recs: default geometry for the configurable "Special formats" - 4 format blocks x 24 bytes (2x 12-byte records = .a/.b), selected via drive_index_bits (cfg_byte / format_desc) and copied to the 0x31A1 working block by the user/default config menu. Read-only. 6 LE words/record (word0=0; exact field semantics not fully pinned)',
+    0x4B29: 'fmt_geom_recs: "Special format" per-head zone tables (default set). 4 formats x 2 records (.a=head0, .b=head1); each record = 6 zone entries { cyl : low byte, rate flag : high byte, 0/1/2 = N/L/H } rendered as cyl/flag by the head-pair editor (hrd_row_head0/1). Selected via drive_index_bits (cfg_byte / format_desc), copied to the 0x31A1 working block and edited by hrd_edit_head_pair. Read-only defaults',
     0x4B89: 'current FDC data-rate register bits (ORed then OUT to 0xB1)',
     0x4B8A: 'current FDC write-precompensation value (OUT to 0xC2)',
     0x4A6A: 'FDC1 command buffer',  0x4A73: 'FDC2 command buffer',  0x4A7C: 'FDC3 command buffer',
