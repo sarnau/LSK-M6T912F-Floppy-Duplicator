@@ -408,7 +408,7 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       <span class="lbl">Corrected during analysis</span>
       The parallel deep-dives initially split three ways on the low ports. Direct disassembly settled
       each: <b>0x00/10/20/30 are four FDCs</b> (textbook 765 MSR polling), not sensor latches;
-      <b>0xD0–0xDC are two USARTs</b> (they carry the autoloader protocol), not FDC data;
+      <b>0xD0–0xDC are the two Z80 SIO channels</b> (they carry the autoloader + host protocols), not FDC data;
       <b>0x80–0x8F is the 8237 DMA</b>, not an MMU. The added 8253 datasheet then re-homed
       <b>0xA0–0xAC from &ldquo;PPI&rdquo; to the timer</b>, which also explains baud generation.
       Finally, the subsystem drill-downs corrected the memory story: the DRAM image-buffer bank is

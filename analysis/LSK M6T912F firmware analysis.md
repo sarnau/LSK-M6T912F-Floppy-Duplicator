@@ -230,8 +230,8 @@ of the four FDCs.
 | 94/98/F0 | panel + EEPROM | 4 keys · beeper · serial NVRAM | key scan `0x4D0B`; key decode `0x4590`; beeper on `0xF0`; EEPROM `0x2ACB` | [R] |
 
 **Corrected during analysis** — direct disassembly settled three initially-disputed assignments:
-0x00/10/20/30 are four FDCs (textbook 765 MSR polling), not sensor latches; 0xD0–0xDC are two
-USARTs (they carry the autoloader protocol), not FDC data; 0x80–0x8F is the 8237 DMA, not an MMU.
+0x00/10/20/30 are four FDCs (textbook 765 MSR polling), not sensor latches; 0xD0–0xDC are the two
+Z80 SIO channels (they carry the autoloader + host protocols), not FDC data; 0x80–0x8F is the 8237 DMA, not an MMU.
 The 8253 datasheet then re-homed 0xA0–0xAC from "PPI" to the timer, which also explains baud gen.
 
 ## 6. Floppy subsystem
