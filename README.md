@@ -14,7 +14,8 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 | `LSK M6T912F firmware analysis.md` / `.html` | Main analysis — hardware map, memory architecture, boot sequence, I/O port map, open questions |
 | `LSK M6T912F firmware internals.md` / `.html` | Companion drill-downs — duplication engine, FDC command engine, HRD diagnostics + 8253 timer, serial protocol handlers |
 | `disassembly/z80dis.py` | Custom two-pass Z80 disassembler (symbols, comments, data regions, offset labels) |
-| `disassembly/sourcecode.s` | Generated, fully-labeled listing (`0x0000–0x52FF`) |
+| `disassembly/inline_comments.py` | Per-instruction inline comments (address → note), consumed by the disassembler |
+| `disassembly/sourcecode.s` | Generated, fully-labeled + fully-commented listing (`0x0000–0x52FF`) |
 | `disassembly/symbols.txt` | Generated symbol table |
 | `datasheets/` | Datasheets for the identified board chips (11 PDFs — see [Component datasheets](#component-datasheets)) |
 | `PCB Front.jpg` | Top-side board photo (used in [Board layout](#board-layout)) |
@@ -89,4 +90,6 @@ python3 z80dis.py "../LSK M6T912F D1_97.bin" 0x0000 0x5300 > sourcecode.s
 ```
 
 The `0x5300` end bound trims the `0xFF`-fill tail (real content ends at `0x52FF`).
-Symbols and inline comments live in the `SYMBOLS` / `COMMENTS` tables inside `z80dis.py`.
+Labels and block/header comments live in the `SYMBOLS` / `COMMENTS` tables inside `z80dis.py`;
+the per-instruction inline comments (one per line) live in `inline_comments.py` (`ILINE`, keyed by
+address) and are merged onto each line automatically.

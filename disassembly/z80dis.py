@@ -2,7 +2,16 @@
 # Minimal-but-complete Z80 disassembler for firmware analysis.
 # Emits readable labels for known functions/variables and annotates I/O ports,
 # and handles the CALL 0x4C59 inline-string print convention (see render_string).
-import sys, re
+import sys, re, os
+
+# Per-instruction inline comments live in a sibling data module so this file
+# stays focused on disassembly logic. Address -> comment; rendered as a trailing
+# "; ..." on the matching line (merged with any I/O-port annotation).
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from inline_comments import ILINE
+except Exception:
+    ILINE = {}
 
 # Register/operand tables
 r = ['B','C','D','E','H','L','(HL)','A']
@@ -289,7 +298,7 @@ SYMBOLS = {
     0x4D0B:'keypad_scan', 0x4D43:'keypad_debounce', 0x4D89:'get_key',
     0x4D8E:'get_key_dispatch', 0x49E3:'buzzer_beep', 0x4BF5:'error_report',
     0x522F:'menu_run',  # generic 4-key menu driver (HL=display+action ptr lists)
-    # --- serial (USART) + timer init ---
+    # --- serial (SIO) + timer init ---
     0x4DD9:'timer_uart_init', 0x4E42:'uart_tx', 0x4E5A:'uart_rx', 0x4E91:'al_cmd_reset',
     0x4E99:'al_tx', 0x4EA1:'al_rx', 0x4E9D:'host_tx', 0x4EAD:'host_rx',
     0x4E53:'al_rx_ready', 0x4E4F:'host_rx_ready',
@@ -657,6 +666,14 @@ def apply_symbols(text):
         if p in PORTS: text = text + '  ; ' + PORTS[p]
     return text
 
+def add_iline(addr, text):
+    """Append the per-instruction inline comment for `addr`, if any. If the line
+    already carries an I/O-port annotation ('  ; port'), the note is joined onto
+    it with an em-dash so there is a single trailing comment."""
+    note = ILINE.get(addr)
+    if not note: return text
+    return text + ' — ' + note if '  ; ' in text else text + '  ; ' + note
+
 COMMENTS = {
     0x0100: 'main entry after RAM relocation: checksum RAM, init HW, size DRAM, pick operating mode',
     0x0105: 'sum bytes 0x0100..0x52EF; compare to cksum_ref; mismatch -> CODE TRANSFER ERROR loop',
@@ -721,7 +738,7 @@ COMMENTS = {
     0x13E5: "receive one autoloader response byte into fmt_mode; return 0 if 'X' ack, else error code 1/2",
     0x13FB: 'autoloader S(tatus): read 2 ASCII-hex chars, decode to status byte',
     0x142B: 'convert one ASCII hex character in A to its 0-15 nibble value',
-    0x1433: 'drain 3 stale bytes from autoloader USART RX (0xD0) and reset its status',
+    0x1433: 'drain 3 stale bytes from autoloader SIO RX (0xD0) and reset its status',
     0x1540: 'print "HRD diagnostics" menu title',
     0x1555: 'print "Special formats" menu title',
     0x156A: 'run special-format submenu A (spfmt_menu_a) via menu_run',
@@ -801,7 +818,7 @@ COMMENTS = {
     0x1DC6: 'if autoloader disk present launch run op 9, else fall through to show_abort prompt',
     0x1DCB: "show 'Abort' on line2, beep once, reset LCD cursor; returns fmt_mode",
     0x1DF3: 'read 4-byte host command packet (opcode in D)',
-    0x1E01: 'read a little-endian 16-bit word from host USART into E,D (abort on rx error)',
+    0x1E01: 'read a little-endian 16-bit word from host SIO into E,D (abort on rx error)',
     0x1E0B: 'host remote-control server dispatcher (opcode table)',
     0x1E37: 'host op 0x0A: download disk image over bulk channel - AA55 sync, validate geometry header, stream tracks into DRAM banks, verify checksum, set image_present',
     0x1F9F: 'host op 0x0B: enter interactive run mode - install iovec callbacks (key/out/annun) and JP run_entry',
@@ -810,7 +827,7 @@ COMMENTS = {
     0x204B: 'host op 0x0C: ping - ack with 0x58 then 0x00',
     0x205C: 'host op 0x09: clear op_word, ack, run abort_check gate then execute run',
     0x206F: 'host op 0x0F: ack then code_loader (download+execute code image), loop dispatch',
-    0x2082: 'host op 0x0E: diagnostic bridge - relay bytes between host (port DC) and autoloader USART',
+    0x2082: 'host op 0x0E: diagnostic bridge - relay bytes between host (port DC) and autoloader SIO',
     0x20E3: "start a duplication/blank-check run - ack, show 'FDD', clear fmt_mode; op 0x07 sets up blank-pass ('BP')",
     0x2134: 'read B*2 bytes from the bulk-image channel into (HL++)',
     0x2141: 'compare received image geometry header (0x334F+1/+2) with stored (0x3133/0x3135); update and return NZ if changed',
@@ -1013,18 +1030,18 @@ COMMENTS = {
     0x4D89: 'get key / dispatch input (indirect via iovec_poll 0x52CB: keypad or host)',
     0x4D8E: 'poll-input tail: if A=0 scan keypad and discard caller return; else return current value',
     0x4D9B: 'poll host UART (0xDC) during key scan; if byte ready fetch remote word, flag cmd 0x0C',
-    0x4DD9: 'init 8253 (baud c0, timers c1/c2) and both USARTs; drain receivers',
-    0x4E42: 'USART TX: wait TxRDY (status bit2), OUT data',
-    0x4E4F: 'test host USART RxRDY: C=0xDC, IN B, bit0 = byte available',
-    0x4E53: 'test autoloader USART RxRDY: C=0xD4, IN B, bit0 = byte available',
-    0x4E5A: 'USART RX with timeout: wait RxRDY (bit0); return Z=byte / NZ=timeout|err',
-    0x4E8C: 'send USART command 0x30 to port C (reset error flags / enter hunt)',
-    0x4E91: 'reset autoloader USART (C=0xD4) via command 0x30',
-    0x4E95: 'reset host USART (C=0xDC) via command 0x30',
-    0x4E99: 'transmit byte A to autoloader USART (C=0xD4, via uart_tx)',
-    0x4E9D: 'transmit byte A to host USART (C=0xDC, via uart_tx)',
-    0x4EA1: 'receive byte from autoloader USART (C=0xD4); on data, clear USART errors',
-    0x4EAD: 'receive byte from host USART (C=0xDC); on data, clear USART errors',
+    0x4DD9: 'init 8253 (baud c0, timers c1/c2) and both SIO channels; drain receivers',
+    0x4E42: 'SIO TX: wait TxRDY (status bit2), OUT data',
+    0x4E4F: 'test host SIO RxRDY: C=0xDC, IN B, bit0 = byte available',
+    0x4E53: 'test autoloader SIO RxRDY: C=0xD4, IN B, bit0 = byte available',
+    0x4E5A: 'SIO RX with timeout: wait RxRDY (bit0); return Z=byte / NZ=timeout|err',
+    0x4E8C: 'send SIO command 0x30 to port C (reset error flags / enter hunt)',
+    0x4E91: 'reset autoloader SIO (C=0xD4) via command 0x30',
+    0x4E95: 'reset host SIO (C=0xDC) via command 0x30',
+    0x4E99: 'transmit byte A to autoloader SIO (C=0xD4, via uart_tx)',
+    0x4E9D: 'transmit byte A to host SIO (C=0xDC, via uart_tx)',
+    0x4EA1: 'receive byte from autoloader SIO (C=0xD4); on data, clear SIO errors',
+    0x4EAD: 'receive byte from host SIO (C=0xDC); on data, clear SIO errors',
     0x4EB2: '32-bit binary (DE:HL) -> decimal ASCII, right-justified in buffer at 0x4F38 down',
     0x4EB5: 'binary -> decimal ASCII conversion',
     0x4ECB: 'divide 32-bit DE:HL by 10 (BC=10 wrapper over div32_16), remainder in C for digits',
@@ -1384,14 +1401,14 @@ def main():
             n=nb-pc
             bts=' '.join('%02X'%b[pc+i] for i in range(n))
             dbs=', '.join('0x%02X'%b[pc+i] for i in range(n))
-            print('%04X  %-12s  DB %s'%(pc,bts,dbs))
+            print('%04X  %-12s  %s'%(pc,bts,add_iline(pc,'DB %s'%dbs)))
             pc=nb; continue
         if ins.addr in SYMBOLS:
             print('')
             if ins.addr in COMMENTS: print('; %s'%COMMENTS[ins.addr])
             print('%s:'%SYMBOLS[ins.addr])
         bts=' '.join('%02X'%b[ins.addr+i] for i in range(ins.length))
-        print('%04X  %-12s  %s'%(ins.addr,bts,apply_symbols(ins.text)))
+        print('%04X  %-12s  %s'%(ins.addr,bts,add_iline(ins.addr,apply_symbols(ins.text))))
         pc+=ins.length
         # After the inline-string print call, consume the string and realign.
         if ins.kind=='call' and ins.target==PRINT_ADDR and pc<end:
@@ -1402,7 +1419,7 @@ def main():
             slen,stext=render_string(b,pc,end)
             pv=' '.join('%02X'%b[pc+i] for i in range(min(slen,6)))
             if slen>6: pv+=' +'
-            print('%04X  %-12s  %s'%(pc,pv,stext))
+            print('%04X  %-12s  %s'%(pc,pv,add_iline(pc,stext)))
             pc+=slen
 
 def emit_hi_equates():

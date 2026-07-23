@@ -14,6 +14,7 @@
 # it isn't mis-detected); keep the symbol map out of the stats.
 disassembly/sourcecode.s linguist-language=Assembly linguist-detectable=true
 disassembly/symbols.txt  linguist-generated=true
+disassembly/inline_comments.py linguist-generated=true
 
 # --- Standalone analysis pages are documentation, not source ---
 *.html linguist-documentation=true
