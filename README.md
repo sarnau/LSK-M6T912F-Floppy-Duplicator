@@ -16,6 +16,8 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 | `disassembly/z80dis.py` | Custom two-pass Z80 disassembler (symbols, comments, data regions, offset labels) |
 | `disassembly/sourcecode.s` | Generated, fully-labeled listing (`0x0000–0x52FF`) |
 | `disassembly/symbols.txt` | Generated symbol table |
+| `datasheets/` | Datasheets for the identified board chips (11 PDFs — see [Component datasheets](#component-datasheets)) |
+| `PCB Front.jpg` | Top-side board photo (used in [Board layout](#board-layout)) |
 
 ## The machine, briefly
 
