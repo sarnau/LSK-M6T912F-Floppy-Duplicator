@@ -69,6 +69,16 @@ Approximate placement of the major chips on the front side (image above):
 | Bottom-center | Zilog Z80 CPU (Z0840006PSC); the M6T912F firmware EPROM (windowed, "D1/97"); PALCE20V8H (address-decode PLD) |
 | Right | 2× AS4C14400 DRAM SIMMs (8 MB image buffer); banks of 74HCT373 latches / 74HCT157 DRAM address muxes; Catalyst CAT24C02 I²C config EEPROM (near the connector) |
 
+### Serial / RS-232 connections
+
+The RS-232 hardware is clustered in the **bottom-left corner**:
+
+- **Zilog Z80 SIO/0** (`Z0844006PSC`, large 40-pin DIP) — the serial *controller*, driving both channels at TTL levels: channel A = autoloader (`D0/D4`), channel B = host PC (`D8/DC`).
+- **Microchip TC232CPE** (18-pin DIP, immediately **right of the SIO**) — the RS-232 line driver/receiver; its charge-pump caps convert the SIO's TTL to ±RS-232 line levels and back. This chip is the actual RS-232 interface — probe TTL on its SIO side, ±RS-232 on its connector side.
+- **`KS`-series edge headers** carry the level-shifted signals to the rear-panel ports: a keyed 3-pin header on the bottom edge just left of the TC232 (`KS4`), and a cabled pin-header at the left edge (`KS3`). (`KS` = Czech *konektor*.)
+
+Which `KS` header is the host channel vs. the autoloader channel isn't determinable from the firmware or the single top-side photo — both channels share the one TC232, so that needs the schematic or continuity-probing.
+
 ## Regenerating the disassembly
 
 The disassembler is self-contained (standard library only):
