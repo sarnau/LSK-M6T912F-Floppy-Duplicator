@@ -188,7 +188,7 @@
         <tr><td class="a">0x4A61 / 6A / 73 / 7C</td><td>command buffer per FDC; byte0 = last opcode (seek/recal marker for the ISR)</td></tr>
         <tr><td class="a">0x4AA1</td><td>per-FDC "result captured" bits (set by the ISR, spun on by the foreground)</td></tr>
         <tr><td class="a">0x4AEB / 0x4B06</td><td>drive-pair blocks: +7 DOR/motor byte, +8/9 DMA start address, +10/11 DMA count</td></tr>
-        <tr><td class="a">0x52DD</td><td>format descriptor: +1 heads, +2 N (size code), +5 sectors/track, +11 density/flags</td></tr>
+        <tr><td class="a">0x52DD</td><td><code>format_desc</code>: +1/+5 sectors/track, +2 N (size code), +11 density/side/flags (full field map below)</td></tr>
       </tbody>
     </table></div>
 
@@ -287,6 +287,62 @@
         <tr><td class="a">ST3 (SENSE DRIVE 0x04)</td><td>bit6 WP · bit5 ready · bit4 track0</td><td>"FDD not ready"</td></tr>
       </tbody>
     </table></div>
+
+    <h4>The active-format / copy descriptor — format_desc (0x52DD)</h4>
+    <p><code>format_desc</code> is the 18-byte working record (<code>0x52DD–0x52EE</code>) that the FDC
+      engine and the duplication engine both read from. It is <b>two overlaid halves</b>: a
+      <i>geometry</i> descriptor (bytes 0–11) and a block of <i>copy-engine scratch</i> (bytes 12–17).
+      It is not a fixed on-disk structure — it is assembled at run time from the config-menu selection.</p>
+    <p>The geometry half is rebuilt by <b><code>init_format_geom</code> (0x5101)</b>: it
+      <code>LDIR</code>-copies <b>5 nominal parameters</b> from the selected drive block
+      (<code>drive_blk_a+0x11</code>) into <code>+0..+4</code>, then <b>computes</b> <code>+5..+10</code>
+      (dividing the 32 KB image-bank size by the per-sector product to fill the bank). The record
+      deliberately holds both the <i>nominal</i> values (<code>+1</code>, <code>+3/4</code>) and their
+      <i>computed</i> counterparts (<code>+5</code>, <code>+7/8</code>) — that redundancy is by design.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Off</th><th>Sz</th><th>Field</th><th>Source</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td class="a">+0</td><td>1</td><td>nominal cylinder/track count</td><td>copied</td><td>0x085B, 0x0DC4</td></tr>
+        <tr><td class="a">+1</td><td>1</td><td>nominal sectors-per-track</td><td>copied</td><td>0x5089, 0x50B2, 0x50D3</td></tr>
+        <tr><td class="a">+2</td><td>1</td><td>sector-size code <b>N</b></td><td>copied</td><td>0x50F2 + init math</td></tr>
+        <tr><td class="a">+3</td><td>2</td><td>per-track byte size (added to image ptr per track)</td><td>copied</td><td>0x1C5E, 0x2BAF</td></tr>
+        <tr><td class="a">+5</td><td>1</td><td><b>computed</b> sectors-per-track</td><td>init 0x512A</td><td>0x5057, 0x50C1</td></tr>
+        <tr><td class="a">+6</td><td>1</td><td><b>computed</b> N × 4 (sector-size / gap value)</td><td>init 0x514E</td><td>0x5066</td></tr>
+        <tr><td class="a">+7</td><td>2</td><td><b>computed</b> track byte-count (= total, mirrored to +9)</td><td>init 0x5141</td><td>0x504E</td></tr>
+        <tr><td class="a">+9</td><td>2</td><td><b>computed</b> total length (tracks × N)</td><td>init 0x513B</td><td>0x506D</td></tr>
+        <tr><td class="a">+11</td><td>1</td><td><b>format-flags / model-ID byte</b> (bit map below)</td><td>menu</td><td>see below</td></tr>
+        <tr><td class="a">+12</td><td>1</td><td>source image-bank byte (drive A); also <i>start-bank − 1</i></td><td>copy engine</td><td>0x3F75, 0x51D9</td></tr>
+        <tr><td class="a">+13</td><td>2</td><td>source track/buffer pointer</td><td>copy engine</td><td>0x3F72, 0x40D5</td></tr>
+        <tr><td class="a">+15</td><td>1</td><td>destination image-bank byte (drive B)</td><td>copy engine</td><td>0x3F67, 0x40CC</td></tr>
+        <tr><td class="a">+16</td><td>2</td><td>destination track/buffer pointer</td><td>copy engine</td><td>0x3F64, 0x40C9</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Byte +11 — format flags / model-ID</b> (<code>0x52E8</code>). Set from the menu selection; the
+      copy engine also reads/writes it as the reported model-ID byte (<code>0x1943</code>,
+      <code>0x199A</code>, <code>0x1FE2</code>):</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Bit</th><th>Meaning</th><th>Consumed by</th></tr></thead>
+      <tbody>
+        <tr><td class="a">7</td><td>HD (1) / DD (0) density</td><td>RES/SET 7 at 0x1831/0x1849; → media-cfg index bit 0 (0x521F)</td></tr>
+        <tr><td class="a">6</td><td>media-config index bit 1</td><td><code>media_cfg_index</code> 0x5217</td></tr>
+        <tr><td class="a">5</td><td>FDC unit-select option → sel bit 6</td><td><code>fdc_build_unit_sel</code> 0x51FA</td></tr>
+        <tr><td class="a">4</td><td>double-sided (2 heads)</td><td>seek 2nd head 0x0739; sel bit 5 0x51F2; datarate latch 0x5153</td></tr>
+        <tr><td class="a">3</td><td>media-config index bit 2</td><td><code>media_cfg_index</code> 0x520F</td></tr>
+        <tr><td class="a">2</td><td>FDC unit-select option → sel bit 7</td><td><code>fdc_build_unit_sel</code> 0x5202</td></tr>
+      </tbody>
+    </table></div>
+    <p>The <b>copy scratch</b> (<code>+12..+17</code>) is populated per operation by the duplication
+      engine (<code>0x3F64</code>, <code>0x40C9</code>) and then latched into
+      <code>drive_blk_a</code>/<code>drive_blk_b</code> at <code>+7</code> (bank) and <code>+0xC</code>
+      (pointer) — it carries the source- and destination-drive bank + image-buffer pointers for one
+      track-copy pass.</p>
+    <div class="note corr">
+      <b>Not <code>format_desc</code>:</b> <code>geom_sector_calc</code> (<code>0x2BB7</code>, called only
+      from <code>0x1D4D</code>) reads <code>IX+13/+15</code>, but there <code>IX</code> points at the
+      <b>installed boot-sector BPB record</b> (copied in at <code>0x1D38</code>), <i>not</i> at
+      <code>format_desc</code>. Those two offsets are BPB sectors-per-track / interleave, unrelated to
+      the copy-scratch bytes at <code>format_desc+13/+15</code>.
+    </div>
   </section>
 
   <!-- ============ C. HRD + 8253 ============ -->
@@ -390,7 +446,7 @@
 
     <h4>Host remote control — the machine is the server</h4>
     <p>The two serial links have opposite roles: on the autoloader link the machine is the
-      <b>client</b> (it issues S/C/I/A/R, above); on the host link (USART 0xD8/0xDC) it is the
+      <b>client</b> (it issues S/C/I/A/R, above); on the host link (Z80 SIO 0xD8/0xDC) it is the
       <b>server</b>. A host PC can drive the entire duplication cycle remotely — download an image,
       format/write, run a pass, or upload and execute code — while the machine services requests.</p>
     <p><code>host_dispatch</code> (0x1E0B) is the server loop: it shows a blinking <code>'.'</code>

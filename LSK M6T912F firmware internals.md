@@ -61,7 +61,7 @@ issued via an `LD SP,IX / POP` rapid-load of the RAM state block.
 | 0x4A61 / 6A / 73 / 7C | command buffer; byte0 = last opcode (seek/recal marker for ISR) |
 | 0x4AA1 | per-FDC "result captured" bits |
 | 0x4AEB / 0x4B06 | drive-pair blocks: +7 DOR/motor, +8/9 DMA start addr, +10/11 DMA count |
-| 0x52DD | format descriptor: +1 heads, +2 N, +5 sectors/track, +11 density/flags |
+| 0x52DD | `format_desc`: +1/+5 sectors/track, +2 N, +11 density/side/flags (full field map below) |
 
 **READ/WRITE build** `0x3BFB` — opcode base in `0x4AEA` (0x26→0x66 READ / 0x05→0x45 WRITE after
 `|0x40` MFM); 9 bytes `{CMD,HD/US,C,H,R,N,EOT,GPL,DTL}` streamed by `0x457F`; DMA armed in parallel
@@ -142,6 +142,57 @@ an earlier build (or read only by an externally-downloaded program, which is out
 | ST2.4 / ST2.1 | wrong / bad cylinder | "FDD seek error" |
 | ST0.4 | equipment check | "FDD seek error" |
 | ST3 (SENSE DRIVE 0x04) | WP / ready / track0 | "FDD not ready" |
+
+### The active-format / copy descriptor — `format_desc` (0x52DD)
+
+`format_desc` is the 18-byte working record (`0x52DD–0x52EE`) that the FDC engine and the
+duplication engine both read from. It is **two overlaid halves**: a *geometry* descriptor
+(bytes 0–11) and a block of *copy-engine scratch* (bytes 12–17). It is not a fixed on-disk
+structure — it is assembled at run time from the config-menu selection.
+
+The geometry half is rebuilt by **`init_format_geom` (0x5101)**: it `LDIR`-copies **5 nominal
+parameters** from the selected drive block (`drive_blk_a+0x11`) into `+0..+4`, then **computes**
+`+5..+10` (dividing the 32 KB image-bank size by the per-sector product to fill the bank). So the
+record deliberately holds both the *nominal* values (`+1`, `+3/4`) and their *computed* counterparts
+(`+5`, `+7/8`) — that redundancy is by design, not a bug.
+
+| Off | Sz | Field | Source | Evidence |
+|---|---|---|---|---|
+| +0 | 1 | nominal cylinder/track count | copied | `0x085B`, `0x0DC4` |
+| +1 | 1 | nominal sectors-per-track | copied | `0x5089`, `0x50B2`, `0x50D3` |
+| +2 | 1 | sector-size code **N** | copied | `0x50F2` + init math |
+| +3 | 2 | per-track byte size (added to image ptr per track) | copied | `0x1C5E`, `0x2BAF` |
+| +5 | 1 | **computed** sectors-per-track | `init` `0x512A` | `0x5057`, `0x50C1` |
+| +6 | 1 | **computed** N × 4 (sector-size / gap value) | `init` `0x514E` | `0x5066` |
+| +7 | 2 | **computed** track byte-count (= total, mirrored to +9) | `init` `0x5141` | `0x504E` |
+| +9 | 2 | **computed** total length (tracks × N) | `init` `0x513B` | `0x506D` |
+| +11 | 1 | **format-flags / model-ID byte** (bit map below) | menu | see below |
+| +12 | 1 | source image-bank byte (drive A); also *start-bank − 1* | copy engine | `0x3F75`, `0x51D9` |
+| +13 | 2 | source track/buffer pointer | copy engine | `0x3F72`, `0x40D5` |
+| +15 | 1 | destination image-bank byte (drive B) | copy engine | `0x3F67`, `0x40CC` |
+| +16 | 2 | destination track/buffer pointer | copy engine | `0x3F64`, `0x40C9` |
+
+**Byte +11 — format flags / model-ID** (`0x52E8`). Set from the menu selection; the copy engine
+also reads/writes it as the reported model-ID byte (`0x1943`, `0x199A`, `0x1FE2`):
+
+| Bit | Meaning | Consumed by |
+|---|---|---|
+| 7 | HD (1) / DD (0) density | `RES/SET 7` at `0x1831`/`0x1849`; → media-cfg index bit 0 (`0x521F`) |
+| 6 | media-config index bit 1 | `media_cfg_index` `0x5217` |
+| 5 | FDC unit-select option → sel bit 6 | `fdc_build_unit_sel` `0x51FA` |
+| 4 | double-sided (2 heads) | seek 2nd head `0x0739`; sel bit 5 `0x51F2`; datarate latch `0x5153` |
+| 3 | media-config index bit 2 | `media_cfg_index` `0x520F` |
+| 2 | FDC unit-select option → sel bit 7 | `fdc_build_unit_sel` `0x5202` |
+
+The **copy scratch** (`+12..+17`) is populated per operation by the duplication engine
+(`0x3F64`, `0x40C9`) and then latched into `drive_blk_a`/`drive_blk_b` at `+7` (bank) and `+0xC`
+(pointer) — i.e. it carries the source-drive and destination-drive bank + image-buffer pointers for
+one track-copy pass.
+
+> **Not `format_desc`:** `geom_sector_calc` (`0x2BB7`, called only from `0x1D4D`) reads `IX+13/+15`,
+> but there `IX` points at the **installed boot-sector BPB record** (copied in at `0x1D38`), *not* at
+> `format_desc`. Those two offsets are BPB sectors-per-track / interleave, unrelated to the copy-scratch
+> bytes at `format_desc+13/+15`.
 
 ---
 
@@ -230,7 +281,7 @@ compare `'X'` (A=0 ok / 1 timeout / 2 wrong).
 
 **Host remote control — the machine is the server.** The two serial links have opposite roles: on
 the autoloader link the machine is the **client** (it issues S/C/I/A/R, above); on the host link
-(USART 0xD8/0xDC) it is the **server**. A host PC can drive the entire duplication cycle remotely —
+(Z80 SIO 0xD8/0xDC) it is the **server**. A host PC can drive the entire duplication cycle remotely —
 download an image, format/write, run a duplication pass, or even upload and execute code — while the
 machine just services requests.
 

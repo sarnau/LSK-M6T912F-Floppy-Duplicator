@@ -898,7 +898,7 @@ COMMENTS = {
     0x2B83: 'map media/geometry config to a drive-geom table index; for cfg==4 add unit 0-3, else code 7/6/3',
     0x2BA5: 'compute track-image buffer pointer: derive head via block_to_chs, then scale by track size',
     0x2BAB: "advance HL by (A-1)*track_size (0x52E0) to reach a track's image slot; returns head in A",
-    0x2BB7: 'from format_desc geometry (IX+13/+15) compute sectors-per-track/interleave via div32_16',
+    0x2BB7: 'from the BPB record (IX = installed boot-sector BPB, not format_desc): IX+13/+15 give sectors-per-track/interleave, div32_16 -> sector index',
     0x2BD1: 'HRD radial-alignment test (head variant a)',
     0x2BDA: 'HRD radial-alignment diag: show header, then display drive-B radial reading (index 1)',
     0x2BE3: 'HRD radial-alignment diag: show header, then display radial reading index 2',
@@ -1309,6 +1309,35 @@ COMMENTS.update({
     0x4C53: 'saved caller HL across lcd_print (restored at 0x4CCB)',
     0x4C55: 'saved caller BC across lcd_print (restored at 0x4CCE)',
     0x4C57: 'saved caller HL across lcd_byte_out (restored at 0x4C4F)',
+})
+
+COMMENTS.update({
+    # 18-byte active-format / copy descriptor. Two overlaid halves. Geometry
+    # (0..11) is rebuilt by init_format_geom (0x5101): it copies 5 nominal params
+    # from the selected drive block into +0..+4, then computes +5..+10 to fill the
+    # 32 KB image bank. Copy scratch (12..17) is loaded by the duplication engine
+    # (0x3F64/0x40C9) and latched into drive_blk_a/b.
+    #   +0    nominal cylinder/track count (copied)          [0x085B,0x0DC4]
+    #   +1    nominal sectors-per-track (copied)             [0x5089,0x50B2,0x50D3]
+    #   +2    sector-size code N (copied)                    [0x50F2, init math]
+    #   +3..4 per-track byte size, 16-bit (copied)           [0x1C5E,0x2BAF]
+    #   +5    computed sectors-per-track                     [0x512A;0x5057,0x50C1]
+    #   +6    computed N*4 (sector-size/gap value)           [0x514E;0x5066]
+    #   +7..8 computed track byte-count (= total, mirror)    [0x5141;0x504E]
+    #   +9..10 computed total length (tracks*N)              [0x513B;0x506D]
+    #   +11   FORMAT FLAGS / model-ID byte: bit7=HD/DD density, bit4=double-sided,
+    #         bits2/3/5/6=media-cfg index + FDC unit-select options
+    #         [density 0x1831/0x1849; sides 0x0739; media_cfg_index 0x520A;
+    #          fdc_build_unit_sel 0x51E7; model-ID 0x1943/0x1FE2]
+    #   +12   source image-bank byte (drive A); also start-bank-1 [0x3F75,0x51D9]
+    #   +13..14 source track/buffer pointer, 16-bit           [0x3F72,0x40D5]
+    #   +15   destination image-bank byte (drive B)           [0x3F67,0x40CC]
+    #   +16..17 destination track/buffer pointer, 16-bit      [0x3F64,0x40C9]
+    0x52DD: 'format_desc: 18-byte active-format + copy descriptor. Bytes 0-11 = disk'
+            ' geometry (init_format_geom copies 5 nominal params -> +0..+4, computes'
+            ' +5..+10); byte +11 = density/side/option flags (+ model-ID); bytes 12-17'
+            ' = copy-engine bank/pointer scratch (src bank+ptr, dst bank+ptr). See the'
+            ' field map in the internals doc.',
 })
 
 BRANCH_KINDS = {'jr','jump','cjump','call','ccall'}

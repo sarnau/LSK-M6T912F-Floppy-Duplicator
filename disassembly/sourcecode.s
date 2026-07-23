@@ -5572,19 +5572,19 @@ loc_2BB3:
 2BB4  10 FD         DJNZ loc_2BB3  ; repeat for each remaining track
 2BB6  C9            RET  ; return with head in A
 
-; from format_desc geometry (IX+13/+15) compute sectors-per-track/interleave via div32_16
+; from the BPB record (IX = installed boot-sector BPB, not format_desc): IX+13/+15 give sectors-per-track/interleave, div32_16 -> sector index
 geom_sector_calc:
 2BB7  6F            LD L,A  ; A -> L (low byte of dividend)
 2BB8  26 00         LD H,0x00  ; clear H
 2BBA  5C            LD E,H  ; clear E (high dividend word)
 2BBB  54            LD D,H  ; clear D
-2BBC  DD 4E 0D      LD C,(IX+13)  ; divisor = sectors/track from format_desc
+2BBC  DD 4E 0D      LD C,(IX+13)  ; divisor = sectors/track from the BPB record (IX+13), not format_desc
 2BBF  06 00         LD B,0x00  ; high divisor byte = 0
 2BC1  CD CE 4E      CALL div32_16  ; 32/16 divide to get sector index
 2BC4  0C            INC C  ; make it 1-based
 2BC5  79            LD A,C  ; quotient+1 into A
 2BC6  45            LD B,L  ; remainder low -> B
-2BC7  DD 4E 0F      LD C,(IX+15)  ; load interleave field from format_desc
+2BC7  DD 4E 0F      LD C,(IX+15)  ; load interleave field from the BPB record (IX+15), not format_desc
 2BCA  0D            DEC C  ; interleave-1
 2BCB  CB 09         RRC C  ; halve interleave, test parity
 2BCD  C8            RET Z  ; if it divided evenly, return
@@ -11535,6 +11535,7 @@ iovec_beep:
 ver_bootloader:
 52CF  52 36 52 31 41 20 20 20 39 34 30 33 32 39       |R6R1A   940329|
 
+; format_desc: 18-byte active-format + copy descriptor. Bytes 0-11 = disk geometry (init_format_geom copies 5 nominal params -> +0..+4, computes +5..+10); byte +11 = density/side/option flags (+ model-ID); bytes 12-17 = copy-engine bank/pointer scratch (src bank+ptr, dst bank+ptr). See the field map in the internals doc.
 format_desc:
 52DD  50 02 0F 00 02 04 3C 00 78 00 1E 00 00 00 00 00 |P.....<.x.......|
 52ED  00 00                                           |..|
