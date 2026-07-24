@@ -19,6 +19,8 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 | `disassembly/inline_comments.py` | Per-instruction inline comments (address → note), consumed by the disassembler |
 | `disassembly/sourcecode.s` | Generated, fully-labeled + fully-commented listing (`0x0000–0x52FF`) |
 | `disassembly/symbols.txt` | Generated symbol table |
+| `disassembly/navmap.py` | Generator for the navigation aids (parses `sourcecode.s`) |
+| `disassembly/navigation.md` | Generated navigation aids — memory map, routine index, call graph |
 | `datasheets/` | Datasheets for the identified board chips (11 PDFs — see [Component datasheets](#component-datasheets)) |
 | `datasheets/controller/` | Autoloader controller datasheets — PIC16C57 MCU + ST93C06 EEPROM |
 | `PCB Front.jpg` | Top-side board photo (used in [Board layout](#board-layout)) |
@@ -104,3 +106,10 @@ The `0x5300` end bound trims the `0xFF`-fill tail (real content ends at `0x52FF`
 Labels and block/header comments live in the `SYMBOLS` / `COMMENTS` tables inside `z80dis.py`;
 the per-instruction inline comments (one per line) live in `inline_comments.py` (`ILINE`, keyed by
 address) and are merged onto each line automatically.
+
+The navigation aids (memory map, routine index, call graph) are generated from the listing:
+
+```sh
+cd disassembly
+python3 navmap.py sourcecode.s > navigation.md
+```

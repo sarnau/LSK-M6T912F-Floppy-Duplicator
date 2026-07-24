@@ -15,6 +15,7 @@
 disassembly/sourcecode.s linguist-language=Assembly linguist-detectable=true
 disassembly/symbols.txt  linguist-generated=true
 disassembly/inline_comments.py linguist-generated=true
+disassembly/navigation.md linguist-generated=true
 
 # --- Standalone analysis pages are documentation, not source ---
 *.html linguist-documentation=true
