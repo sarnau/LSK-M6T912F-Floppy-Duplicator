@@ -13,11 +13,14 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 | `LSK M6T912F D1_97.bin` | The original 32 KB EPROM image (the subject binary) |
 | `LSK M6T912F firmware analysis.md` / `.html` | Main analysis — hardware map, memory architecture, boot sequence, I/O port map, open questions |
 | `LSK M6T912F firmware internals.md` / `.html` | Companion drill-downs — duplication engine, FDC command engine, HRD diagnostics + 8253 timer, serial protocol handlers |
+| `LSK M6T912F autoloader.md` / `.html` | Autoloader device reference — PIC16C57 / ST93C06 hardware, serial command set (S/C/I/A/R/O/V), status codes |
+| `LSK M6T912F host protocol.md` / `.html` | Host remote-control protocol reference — server loop, 4-byte packet, opcode table, image download / load-exec |
 | `disassembly/z80dis.py` | Custom two-pass Z80 disassembler (symbols, comments, data regions, offset labels) |
 | `disassembly/inline_comments.py` | Per-instruction inline comments (address → note), consumed by the disassembler |
 | `disassembly/sourcecode.s` | Generated, fully-labeled + fully-commented listing (`0x0000–0x52FF`) |
 | `disassembly/symbols.txt` | Generated symbol table |
 | `datasheets/` | Datasheets for the identified board chips (11 PDFs — see [Component datasheets](#component-datasheets)) |
+| `datasheets/controller/` | Autoloader controller datasheets — PIC16C57 MCU + ST93C06 EEPROM |
 | `PCB Front.jpg` | Top-side board photo (used in [Board layout](#board-layout)) |
 
 ## The machine, briefly
@@ -53,6 +56,14 @@ datasheets are included for reference under [`datasheets/`](datasheets/).
 
 Clocking: 32.000 MHz + 48.000 MHz crystals (the 8253's 2 MHz input is 32 MHz ÷ 16); address decode is
 a GAL20V8B + PALCE20V8H. The full hardware map, port table, and open questions are in the main analysis.
+
+The **autoloader** is a separate device on the RS-232 link, built around its own controller — see the
+[autoloader reference](LSK%20M6T912F%20autoloader.md):
+
+| Chip | Role | Datasheet |
+|---|---|---|
+| Microchip PIC16C57 | Autoloader MCU (hopper/arm/bin motors, sensors, serial interpreter) | `datasheets/controller/PIC16C57.PDF` |
+| SGS-Thomson ST93C06 | Autoloader NVRAM (256-bit Microwire EEPROM) — cycle count + config | `datasheets/controller/ST93C06.PDF` |
 
 ## Board layout
 

@@ -215,7 +215,7 @@ wait_autoloader_loop:
 al_connect_probe:
 024D  3E 01         LD A,0x01  ; assume autoloader present (flag=1)
 024F  32 62 31      LD (al_present),A  ; set al_present
-0252  06 52         LD B,0x52  ; autoloader command 'R' (0x52) = ping/version
+0252  06 52         LD B,0x52  ; autoloader 'R' (0x52) = reject, used here as a presence ping
 0254  CD D9 13      CALL al_cmd_ack  ; send 'R' and await autoloader ACK
 0257  28 40         JR Z,loc_0299  ; ACK ok -> continue to 'C' command probe
 0259  FE 01         CP 0x01  ; compare result code to 1
@@ -241,7 +241,7 @@ loc_028D:
 0296  C3 5C 03      JP loc_035C  ; continue at loc_035C after manual mode
 
 loc_0299:
-0299  06 43         LD B,0x43  ; autoloader command 'C' (0x43) = connect/status
+0299  06 43         LD B,0x43  ; autoloader 'C' (0x43) = calibrate/clear
 029B  CD D9 13      CALL al_cmd_ack  ; send 'C' and await autoloader ACK
 029E  CA 60 03      JP Z,loc_0360  ; ACK ok -> proceed to loc_0360
 02A1  78            LD A,B  ; get returned reply byte from B

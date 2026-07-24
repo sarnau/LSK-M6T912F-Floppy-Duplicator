@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LSK M6T912F Autoloader</title>
+<style>
+  :root{
+    --bg:#e7e6e1; --surface:#f6f5f1; --surface-2:#efeee8; --ink:#23252b; --ink-soft:#54575f;
+    --ink-faint:#7d818a; --line:#d2cfc6; --line-strong:#bcb9ae;
+    --amber:#a86412; --amber-soft:#c98a2a; --teal:#256b68; --ok:#3f7d4e; --warn:#9c7620; --err:#b23b3b;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --measure:70ch;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#131519; --surface:#1b1e24; --surface-2:#20242b; --ink:#e0e3e8; --ink-soft:#a3a8b2;
+      --ink-faint:#767b85; --line:#2a2e37; --line-strong:#3a3f4a;
+      --amber:#e8a83a; --amber-soft:#c98a2a; --teal:#5cb4b0; --ok:#5fb277; --warn:#d1a23f; --err:#e0645f;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#e7e6e1; --surface:#f6f5f1; --surface-2:#efeee8; --ink:#23252b; --ink-soft:#54575f;
+    --ink-faint:#7d818a; --line:#d2cfc6; --line-strong:#bcb9ae;
+    --amber:#a86412; --amber-soft:#c98a2a; --teal:#256b68; --ok:#3f7d4e; --warn:#9c7620; --err:#b23b3b;
+  }
+  :root[data-theme="dark"]{
+    --bg:#131519; --surface:#1b1e24; --surface-2:#20242b; --ink:#e0e3e8; --ink-soft:#a3a8b2;
+    --ink-faint:#767b85; --line:#2a2e37; --line-strong:#3a3f4a;
+    --amber:#e8a83a; --amber-soft:#c98a2a; --teal:#5cb4b0; --ok:#5fb277; --warn:#d1a23f; --err:#e0645f;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;
+    -webkit-font-smoothing:antialiased;margin:0}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 96px}
+  a{color:var(--teal);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--teal) 35%,transparent)}
+  a:hover{border-bottom-color:var(--teal)}
+  :focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:2px}
+  header.mast{border-bottom:2px solid var(--ink);margin-top:40px;padding-bottom:20px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--amber);font-weight:600}
+  h1{font-size:clamp(28px,5vw,42px);line-height:1.05;letter-spacing:-.02em;font-weight:800;
+    margin:.35em 0 .1em;text-wrap:balance}
+  .lede{font-size:17px;color:var(--ink-soft);max-width:var(--measure);margin:.4em 0 0}
+  section{margin-top:56px;scroll-margin-top:20px}
+  .snum{font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.1em}
+  h2{font-size:24px;letter-spacing:-.01em;font-weight:750;margin:.25em 0 .3em;text-wrap:balance}
+  h3{font-size:15.5px;font-weight:700;margin:30px 0 8px}
+  h4{font-size:13px;font-weight:700;margin:20px 0 6px;font-family:var(--mono);color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.06em}
+  p{max-width:var(--measure)}
+  .muted{color:var(--ink-soft)}
+  code,.mono{font-family:var(--mono)}
+  p code,li code,td code{font-family:var(--mono);font-size:.9em;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:3px;padding:.5px 5px;color:var(--ink);white-space:nowrap}
+  ul.clean{max-width:var(--measure);padding-left:0;list-style:none;margin:12px 0}
+  ul.clean li{position:relative;padding-left:20px;margin:7px 0}
+  ul.clean li::before{content:"";position:absolute;left:2px;top:11px;width:6px;height:6px;
+    background:var(--amber-soft);border-radius:50%}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;margin:18px 0;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{background:var(--surface-2);font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--ink-soft);font-weight:600;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:color-mix(in srgb,var(--amber) 6%,transparent)}
+  td.a{font-family:var(--mono);color:var(--amber);white-space:nowrap;font-weight:600}
+  .tnum{font-variant-numeric:tabular-nums}
+  pre.asm{font-family:var(--mono);font-size:12px;line-height:1.6;background:var(--surface);
+    border:1px solid var(--line);border-left:3px solid var(--amber-soft);border-radius:0 6px 6px 0;
+    padding:14px 16px;overflow-x:auto;color:var(--ink);margin:14px 0}
+  pre.asm .c{color:var(--ink-faint)}
+  pre.asm b{color:var(--amber);font-weight:600}
+  .chip{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:2px 7px;
+    border-radius:100px;border:1px solid;white-space:nowrap;font-weight:600;text-transform:uppercase}
+  .c-ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+  .c-unc{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+  .note{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);
+    border-radius:0 6px 6px 0;padding:14px 18px;margin:20px 0;max-width:var(--measure)}
+  .note.corr{border-left-color:var(--err)}
+  .note .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--amber);font-weight:600;display:block;margin-bottom:4px}
+  .note.corr .lbl{color:var(--err)}
+  nav.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 22px;
+    margin:28px 0 0;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  nav.toc a{font-size:13.5px;padding:4px 0;border:0;color:var(--ink-soft);display:flex;gap:10px}
+  nav.toc a:hover{color:var(--amber)}
+  nav.toc a span{font-family:var(--mono);color:var(--amber);font-size:12px}
+  footer{margin-top:64px;padding-top:22px;border-top:2px solid var(--ink);color:var(--ink-faint);
+    font-size:13px;max-width:var(--measure)}
+  footer .mono{font-size:12px;color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow">Firmware Teardown · Autoloader · Companion</div>
+    <h1>LSK M6T912F — Autoloader</h1>
+    <p class="lede">The mechanical disk changer that feeds the duplicator: input hopper, a motorised
+      arm into the master drive, and accept / reject bins. A self-contained embedded device with its
+      own microcontroller and firmware, driven by the duplicator over a serial link.</p>
+    <p class="muted" style="font-size:13px;margin-top:12px">Sources: <span class="chip c-ok">GT</span> ground truth (wire + terminal) ·
+      <span class="chip c-ok">FW</span> proven from the duplicator disassembly ·
+      <span class="chip c-ok">HW</span> chip datasheets / board. The autoloader's own firmware was not dumped —
+      its internals are described from the outside. See the <a href="LSK M6T912F firmware analysis.html">main analysis</a> and <a href="LSK M6T912F firmware internals.html">internals</a>.</p>
+  </header>
+
+  <div class="note">
+    <span class="lbl">Identity</span>
+    Power-up banner (GT): <code>LSK Autoloader</code> / <code>Copyright - LSK Data Systems 1995</code>.
+  </div>
+
+  <nav class="toc" aria-label="Contents">
+    <a href="#hw"><span>A</span> Hardware</a>
+    <a href="#proto"><span>B</span> Serial protocol</a>
+    <a href="#status"><span>C</span> Status codes &amp; decode</a>
+    <a href="#misc"><span>D</span> Counters &amp; cross-reference</a>
+  </nav>
+
+  <!-- ============ A. HARDWARE ============ -->
+  <section id="hw">
+    <div class="snum">A</div>
+    <h2>Hardware</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Chip</th><th>Role</th><th>Datasheet</th></tr></thead>
+      <tbody>
+        <tr><td class="a">Microchip PIC16C57</td><td>8-bit MCU — the autoloader's brain: sequences the hopper/arm/bin motors, reads the position/jam sensors, and runs the serial command interpreter. 28-pin, 20 I/O, 2K×12 EPROM, 72 B RAM, DC–20 MHz. <span class="chip c-ok">HW</span></td><td><code>datasheets/controller/PIC16C57.PDF</code></td></tr>
+        <tr><td class="a">SGS-Thomson ST93C06</td><td>256-bit (16×16 / 32×8) Microwire serial EEPROM — non-volatile store for the autoloader's lifetime cycle count (reported by <code>V</code>) and any calibration/config. 1 M write cycles, 5 V. <span class="chip c-ok">HW</span></td><td><code>datasheets/controller/ST93C06.PDF</code></td></tr>
+      </tbody>
+    </table></div>
+    <p>The PIC's 20 I/O lines are enough to drive the three motor paths (hopper feed, drive arm,
+      accept/reject diversion) and read the sensor set the status byte reports (hopper-seated,
+      hopper-empty, disk-in-drive, reject-bin, accept-output). The ST93C06's 256 bits (32 bytes)
+      comfortably hold the 32-bit counter plus a few calibration bytes. <span class="chip c-unc">HW · inferred</span></p>
+  </section>
+
+  <!-- ============ B. SERIAL PROTOCOL ============ -->
+  <section id="proto">
+    <div class="snum">B</div>
+    <h2>Serial protocol</h2>
+    <ul class="clean">
+      <li><b>RS-232, 9600 baud, 8N1</b> <span class="chip c-ok">GT</span>.</li>
+      <li>On the duplicator it is <b>Z80 SIO channel A</b>, ports <code>0xD0</code> (data) / <code>0xD4</code> (control) <span class="chip c-ok">FW</span>. The host-PC remote link is the other SIO channel, B, at <code>0xD8</code>/<code>0xDC</code>.</li>
+      <li>One <b>ASCII byte per command</b>; the autoloader answers with a single ASCII status character (and, for <code>S</code>/<code>O</code>/<code>V</code>, extra ASCII text). <span class="chip c-ok">GT</span></li>
+    </ul>
+
+    <h4>Command set (GT)</h4>
+    <div class="scroll"><table>
+      <thead><tr><th>Cmd</th><th>ASCII</th><th>Meaning</th><th>Used by the duplicator?</th></tr></thead>
+      <tbody>
+        <tr><td class="a">S</td><td>0x53</td><td><b>Status</b> — returns two ASCII hex chars (the status byte)</td><td>✔ <code>al_cmd_status</code> 0x13FB</td></tr>
+        <tr><td class="a">C</td><td>0x43</td><td><b>Calibrate / clear</b> — home the mechanism, clear a fault</td><td>✔ 0x1198 / 0x1272</td></tr>
+        <tr><td class="a">I</td><td>0x49</td><td><b>Insert</b> — feed the next diskette from the hopper into the drive</td><td>✔ 0x11FC</td></tr>
+        <tr><td class="a">A</td><td>0x41</td><td><b>Accept</b> — eject the diskette to the accept bin</td><td>✔ 0x10D6 / 0x1129</td></tr>
+        <tr><td class="a">R</td><td>0x52</td><td><b>Reject</b> — eject to the reject bin</td><td>✔ 0x1149 / 0x126D; also a presence ping (0x0252)</td></tr>
+        <tr><td class="a">O</td><td>0x4F</td><td>prints the <b>version</b> string</td><td>✘ never issued by this ROM <span class="chip c-ok">FW</span></td></tr>
+        <tr><td class="a">V</td><td>0x56</td><td>prints the <b>cycle count</b> — 32-bit, big-endian, hex string</td><td>✘ never issued by this ROM <span class="chip c-ok">FW</span></td></tr>
+      </tbody>
+    </table></div>
+    <p><code>S</code> keeps returning the same status until a <code>C</code> resets it (GT). The
+      duplicator's presence probe sends <code>R</code> while idle: an autoloader with nothing to eject
+      still answers, so a reply means "connected" and a pure timeout means "not connected"
+      (0x0220 → 0x024D) <span class="chip c-ok">FW</span>.</p>
+
+    <h4>Responses (GT)</h4>
+    <div class="scroll"><table>
+      <thead><tr><th>Reply</th><th>ASCII</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="a">X</td><td>0x58</td><td>executed successfully (ACK)</td></tr>
+        <tr><td class="a">E</td><td>0x45</td><td>error — follow with <code>S</code> to read the code</td></tr>
+        <tr><td class="a">?</td><td>0x3F</td><td>"what?" — unrecognised command</td></tr>
+      </tbody>
+    </table></div>
+    <p>The command wrapper (<code>al_cmd_ack</code> 0x13D9) transmits the byte and tests the reply against
+      <code>'X'</code>: equal → ok, timeout → code 1, anything else → code 2 <span class="chip c-ok">FW</span>.</p>
+  </section>
+
+  <!-- ============ C. STATUS ============ -->
+  <section id="status">
+    <div class="snum">C</div>
+    <h2>Status codes &amp; decode</h2>
+    <p><code>S</code> returns the status as <b>two ASCII hex characters</b> (e.g. <code>"0B"</code>),
+      decoded at 0x13FB into one byte <span class="chip c-ok">FW</span>. Layout: a <b>fault class</b> in
+      the high nibble and <b>disk-presence bits</b> in the low nibble — bit 1 = <i>seated</i> qualifier
+      (bit 1 = 0 ⇒ "hopper not seated"), bit 3 (0x08) = <i>disk in drive</i>.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Code</th><th>Bits</th><th>Ground-truth meaning (GT)</th></tr></thead>
+      <tbody>
+        <tr><td class="a">07</td><td class="mono">0000 0111</td><td>ok — drive empty</td></tr>
+        <tr><td class="a">0B</td><td class="mono">0000 1011</td><td>ok — disk in drive</td></tr>
+        <tr><td class="a">27</td><td class="mono">0010 0111</td><td>input hopper empty</td></tr>
+        <tr><td class="a">47</td><td class="mono">0100 0111</td><td>no disk in drive (asked to eject with none present)</td></tr>
+        <tr><td class="a">4B</td><td class="mono">0100 1011</td><td>disk in drive, motor arm forward</td></tr>
+        <tr><td class="a">87</td><td class="mono">1000 0111</td><td>disk jam — reject-bin sensor</td></tr>
+        <tr><td class="a">8B</td><td class="mono">1000 1011</td><td>disk jam — reject-bin sensor</td></tr>
+        <tr><td class="a">97</td><td class="mono">1001 0111</td><td>disk jam — ejected but did not exit accept output</td></tr>
+        <tr><td class="a">9B</td><td class="mono">1001 1011</td><td>disk jam while ejecting (reject bin selected)</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4>Firmware decode — and where labels diverge</h4>
+    <p><code>al_status_decode</code> (0x1286) masks the high nibble (<code>AND 0xF0</code>) and dispatches
+      to an LCD message. The firmware captions do not always match the autoloader's real condition:</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Class</th><th>Firmware LCD message</th><th>Ground truth (GT)</th><th>Match?</th></tr></thead>
+      <tbody>
+        <tr><td class="a">0x00</td><td>"AL status ok"</td><td>ok (07/0B)</td><td>✓</td></tr>
+        <tr><td class="a">0x20</td><td>"Hopper empty"</td><td>hopper empty (27)</td><td>✓</td></tr>
+        <tr><td class="a">0x40</td><td><i>generic</i> "AL error   Status ᴴᴴ"</td><td>no-disk / arm-forward (47/4B)</td><td>no dedicated message</td></tr>
+        <tr><td class="a">0x80</td><td><b>"Calibration error"</b></td><td>reject-bin <b>disk jam</b> (87/8B)</td><td><b>label differs</b></td></tr>
+        <tr><td class="a">0x90</td><td>"Eject timeout"</td><td>eject <b>jam</b> (97/9B)</td><td>≈ same fault</td></tr>
+        <tr><td class="a">0xA0</td><td>"Accept hopper full"</td><td>—</td><td>—</td></tr>
+        <tr><td class="a">0xC0</td><td>"Reject error"</td><td>—</td><td>—</td></tr>
+        <tr><td class="a">0xD0</td><td>"Bad bin full"</td><td>—</td><td>—</td></tr>
+        <tr><td class="a">bit 1 = 0</td><td>"Hopper not seated"</td><td>hopper not seated</td><td>✓</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note corr">
+      <span class="lbl">Panel caption can mislead</span>
+      A <code>Status 87</code> (mechanical reject-bin jam) is captioned <b>"Calibration error"</b> — clear
+      the jammed diskette from the reject path, do not recalibrate. Unrecognised classes such as 47/4B
+      fall through to the generic <b>"AL error&nbsp;&nbsp;&nbsp;Status ᴴᴴ"</b> line (<code>show_al_error</code>
+      0x02B0), which patches the raw hex into the text so the code is readable off the LCD.
+    </div>
+  </section>
+
+  <!-- ============ D. MISC ============ -->
+  <section id="misc">
+    <div class="snum">D</div>
+    <h2>Counters &amp; cross-reference</h2>
+    <h4>Two independent cycle counters</h4>
+    <ul class="clean">
+      <li><b>Autoloader's own count</b> — a 32-bit total kept in the ST93C06 EEPROM, read only by the
+        <code>V</code> command. This ROM never issues <code>V</code>, so the duplicator never reads it.</li>
+      <li><b>Duplicator's count</b> — a separate 32-bit counter in the <i>duplicator's</i> CAT24C02 EEPROM
+        (offset <code>0xFC</code>, RAM <code>cycle_cnt</code> 0x3269/0x326B), bumped once per successful
+        <code>I</code>/insert and shown by <code>show_model_cycles</code>. This is the number the
+        duplicator's menus display.</li>
+    </ul>
+    <p>Duplicator-side handlers live in the firmware internals, §D (Serial protocol handlers): the client
+      command/ACK loop (0x13D9), the status decode (0x1286), the connection probe (0x0220). The link's
+      electrical side (Z80 SIO + TC232 line driver) is in the README <i>Serial / RS-232 connections</i>.</p>
+  </section>
+
+  <footer>
+    <p>Companion to "LSK M6T912F firmware analysis" · autoloader = PIC16C57 + ST93C06 · protocol from wire observation + ROM cross-check</p>
+  </footer>
+</div>
+</body>
+</html>

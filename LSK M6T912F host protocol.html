@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LSK M6T912F Host Protocol</title>
+<style>
+  :root{
+    --bg:#e7e6e1; --surface:#f6f5f1; --surface-2:#efeee8; --ink:#23252b; --ink-soft:#54575f;
+    --ink-faint:#7d818a; --line:#d2cfc6; --line-strong:#bcb9ae;
+    --amber:#a86412; --amber-soft:#c98a2a; --teal:#256b68; --ok:#3f7d4e; --warn:#9c7620; --err:#b23b3b;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --measure:70ch;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#131519; --surface:#1b1e24; --surface-2:#20242b; --ink:#e0e3e8; --ink-soft:#a3a8b2;
+      --ink-faint:#767b85; --line:#2a2e37; --line-strong:#3a3f4a;
+      --amber:#e8a83a; --amber-soft:#c98a2a; --teal:#5cb4b0; --ok:#5fb277; --warn:#d1a23f; --err:#e0645f;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#e7e6e1; --surface:#f6f5f1; --surface-2:#efeee8; --ink:#23252b; --ink-soft:#54575f;
+    --ink-faint:#7d818a; --line:#d2cfc6; --line-strong:#bcb9ae;
+    --amber:#a86412; --amber-soft:#c98a2a; --teal:#256b68; --ok:#3f7d4e; --warn:#9c7620; --err:#b23b3b;
+  }
+  :root[data-theme="dark"]{
+    --bg:#131519; --surface:#1b1e24; --surface-2:#20242b; --ink:#e0e3e8; --ink-soft:#a3a8b2;
+    --ink-faint:#767b85; --line:#2a2e37; --line-strong:#3a3f4a;
+    --amber:#e8a83a; --amber-soft:#c98a2a; --teal:#5cb4b0; --ok:#5fb277; --warn:#d1a23f; --err:#e0645f;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;
+    -webkit-font-smoothing:antialiased;margin:0}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 96px}
+  a{color:var(--teal);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--teal) 35%,transparent)}
+  a:hover{border-bottom-color:var(--teal)}
+  :focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:2px}
+  header.mast{border-bottom:2px solid var(--ink);margin-top:40px;padding-bottom:20px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--amber);font-weight:600}
+  h1{font-size:clamp(28px,5vw,42px);line-height:1.05;letter-spacing:-.02em;font-weight:800;
+    margin:.35em 0 .1em;text-wrap:balance}
+  .lede{font-size:17px;color:var(--ink-soft);max-width:var(--measure);margin:.4em 0 0}
+  section{margin-top:56px;scroll-margin-top:20px}
+  .snum{font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.1em}
+  h2{font-size:24px;letter-spacing:-.01em;font-weight:750;margin:.25em 0 .3em;text-wrap:balance}
+  h3{font-size:15.5px;font-weight:700;margin:30px 0 8px}
+  h4{font-size:13px;font-weight:700;margin:20px 0 6px;font-family:var(--mono);color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.06em}
+  p{max-width:var(--measure)}
+  .muted{color:var(--ink-soft)}
+  code,.mono{font-family:var(--mono)}
+  p code,li code,td code{font-family:var(--mono);font-size:.9em;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:3px;padding:.5px 5px;color:var(--ink);white-space:nowrap}
+  ul.clean{max-width:var(--measure);padding-left:0;list-style:none;margin:12px 0}
+  ul.clean li{position:relative;padding-left:20px;margin:7px 0}
+  ul.clean li::before{content:"";position:absolute;left:2px;top:11px;width:6px;height:6px;
+    background:var(--amber-soft);border-radius:50%}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;margin:18px 0;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{background:var(--surface-2);font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--ink-soft);font-weight:600;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:color-mix(in srgb,var(--amber) 6%,transparent)}
+  td.a{font-family:var(--mono);color:var(--amber);white-space:nowrap;font-weight:600}
+  .tnum{font-variant-numeric:tabular-nums}
+  pre.asm{font-family:var(--mono);font-size:12px;line-height:1.6;background:var(--surface);
+    border:1px solid var(--line);border-left:3px solid var(--amber-soft);border-radius:0 6px 6px 0;
+    padding:14px 16px;overflow-x:auto;color:var(--ink);margin:14px 0}
+  pre.asm .c{color:var(--ink-faint)}
+  pre.asm b{color:var(--amber);font-weight:600}
+  .chip{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:2px 7px;
+    border-radius:100px;border:1px solid;white-space:nowrap;font-weight:600;text-transform:uppercase}
+  .c-ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+  .c-unc{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+  .note{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);
+    border-radius:0 6px 6px 0;padding:14px 18px;margin:20px 0;max-width:var(--measure)}
+  .note.corr{border-left-color:var(--err)}
+  .note .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--amber);font-weight:600;display:block;margin-bottom:4px}
+  .note.corr .lbl{color:var(--err)}
+  nav.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 22px;
+    margin:28px 0 0;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  nav.toc a{font-size:13.5px;padding:4px 0;border:0;color:var(--ink-soft);display:flex;gap:10px}
+  nav.toc a:hover{color:var(--amber)}
+  nav.toc a span{font-family:var(--mono);color:var(--amber);font-size:12px}
+  footer{margin-top:64px;padding-top:22px;border-top:2px solid var(--ink);color:var(--ink-faint);
+    font-size:13px;max-width:var(--measure)}
+  footer .mono{font-size:12px;color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow">Firmware Teardown · Host Protocol · Companion</div>
+    <h1>LSK M6T912F — Host Remote-Control Protocol</h1>
+    <p class="lede">The second serial link turns the duplicator into a <b>server</b>: a host PC can drive
+      the whole duplication cycle remotely — download an image, set up a format, run a pass, or upload and
+      execute code — while the machine services requests and reports status.</p>
+    <p class="muted" style="font-size:13px;margin-top:12px">Everything here is <span class="chip c-ok">FW</span>
+      proven from the disassembly. Unlike the autoloader link, the host protocol was not observed on the
+      wire — there is no independent ground-truth column. See the <a href="LSK M6T912F firmware analysis.html">main analysis</a>,
+      <a href="LSK M6T912F firmware internals.html">internals</a>, and <a href="LSK M6T912F autoloader.html">autoloader</a> reference.</p>
+  </header>
+
+  <div class="note">
+    <span class="lbl">Two links, opposite roles</span>
+    On the <b>autoloader</b> link the machine is the <i>client</i> (it issues S/C/I/A/R). On the <b>host</b>
+    link it is the <i>server</i> — the host PC issues the commands below.
+  </div>
+
+  <nav class="toc" aria-label="Contents">
+    <a href="#link"><span>A</span> Serial link</a>
+    <a href="#loop"><span>B</span> Server loop &amp; packet</a>
+    <a href="#ops"><span>C</span> Opcode table</a>
+    <a href="#bulk"><span>D</span> Bulk operations</a>
+  </nav>
+
+  <!-- ============ A. LINK ============ -->
+  <section id="link">
+    <div class="snum">A</div>
+    <h2>Serial link</h2>
+    <ul class="clean">
+      <li><b>Z80 SIO channel B</b>, ports <code>0xD8</code> (data) / <code>0xDC</code> (control). The autoloader link is the other channel, A, at <code>0xD0</code>/<code>0xD4</code>.</li>
+      <li><b>9600 baud</b> (×16 SIO clock from the 8253, 153 846 Hz ÷ 16). <b>8 data bits, switchable parity</b> (boots <b>8O1</b>); the autoloader link is fixed 8N1. Init is an OTIR of a WR-register blob (<code>host_ser_blob*</code>, applied at <code>0x4E03</code>).</li>
+      <li>Primitives: <code>host_tx</code> (0x4E9D, spin on TxRDY), <code>host_rx</code> (via 0x4EAD, RxRDY + timeout).</li>
+    </ul>
+  </section>
+
+  <!-- ============ B. LOOP ============ -->
+  <section id="loop">
+    <div class="snum">B</div>
+    <h2>Server loop &amp; packet</h2>
+    <p><b><code>host_dispatch</code> (0x1E0B)</b> — entering host mode sets <code>host_mode = 1</code> and drops into the wait loop:</p>
+    <ul class="clean">
+      <li>Show a blinking idle marker — a <code>.</code> that self-modifies to <code>!</code> and back (<code>XOR 0x0F</code> on the character cell) so the operator sees the link is alive.</li>
+      <li>Read a <b>4-byte command packet</b> (<code>host_read_packet</code> 0x1DF3). A receive error → send <code>'E'</code> (NAK) and re-poll.</li>
+      <li>Store <code>op_word = opcode</code>, <code>run_count = parameter</code>, dispatch (0x1E37 onward), reply, loop.</li>
+    </ul>
+
+    <h4>Command packet — host_read_packet (0x1DF3)</h4>
+    <div class="scroll"><table>
+      <thead><tr><th>Byte</th><th>Goes to</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="a">0</td><td>E</td><td><b>lead / reserved</b> — read but never used or validated (a sync byte)</td></tr>
+        <tr><td class="a">1</td><td>D</td><td><b>opcode</b> → <code>op_word</code></td></tr>
+        <tr><td class="a">2</td><td>L</td><td>parameter low</td></tr>
+        <tr><td class="a">3</td><td>H</td><td>parameter high → <code>HL</code> → <code>run_count</code> (16-bit little-endian)</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4>Replies</h4>
+    <div class="scroll"><table>
+      <thead><tr><th>Reply</th><th>ASCII</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="a">X</td><td>0x58</td><td>ACK / OK</td></tr>
+        <tr><td class="a">E</td><td>0x45</td><td>bad-packet NAK</td></tr>
+        <tr><td class="a">(none)</td><td>—</td><td>a pure RX timeout just re-polls (heartbeat continues)</td></tr>
+      </tbody>
+    </table></div>
+    <p>Most handlers also return a <b>binary status byte</b>: <code>0x00</code> ok · <code>0x90</code> command error · <code>0xA0</code> transfer failed · <code>0xB0</code> not a proper image.</p>
+  </section>
+
+  <!-- ============ C. OPCODES ============ -->
+  <section id="ops">
+    <div class="snum">C</div>
+    <h2>Opcode table</h2>
+    <p>Dispatch is a linear <code>CP &lt;op&gt;; JP/JR NZ</code> chain from <code>0x1E37</code>. Control opcodes:</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Op</th><th>Handler</th><th>Addr</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td class="a">0x09</td><td><code>host_op_start</code></td><td>0x205C</td><td>Reset the operation word (<code>op_word = 0</code>), ACK</td></tr>
+        <tr><td class="a">0x0A</td><td><code>host_op_image_dl</code></td><td>0x1E37</td><td><b>Image download</b> — 0xAA55-framed records into banked DRAM</td></tr>
+        <tr><td class="a">0x0B</td><td><code>host_op_enter_run</code></td><td>0x1F9F</td><td><b>Enter RUN mode</b> — <code>host_mode = 0</code>, install I/O vectors 0x52C9/CB/CD, <code>JP 0x0161</code></td></tr>
+        <tr><td class="a">0x0C</td><td><code>host_op_ping</code></td><td>0x204B</td><td>Ping / no-op ACK (status 0x00)</td></tr>
+        <tr><td class="a">0x0D</td><td><code>host_op_disk_write</code></td><td>0x1FC6</td><td><b>Disk-write / format setup</b> (see below)</td></tr>
+        <tr><td class="a">0x0E</td><td><code>host_op_diag_out</code></td><td>0x2082</td><td><b>Host↔autoloader serial bridge</b> — relays to the autoloader link until <code>'W'</code> (0x57)</td></tr>
+        <tr><td class="a">0x0F</td><td><code>host_op_load_exec</code></td><td>0x206F</td><td><b>Load &amp; execute</b> downloaded code (→ 0x7800, image 0x8000, <code>JP (HL)</code>)</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Duplication-run opcodes.</b> Anything not matched above falls through to <code>host_op_begin_run</code> (0x20E3), where the opcode itself becomes <code>run_status</code> — there is <b>no unknown-opcode reject path</b>:</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Op</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td class="a">0x07</td><td><b>BP</b> duplication run (prints "BP", <code>run_status = 1</code>, <code>OUT 0x9C,0x04</code>, require motor ready)</td></tr>
+        <tr><td class="a">0x01–0x06, 0x08</td><td><b>FDD</b> duplication: <code>run_status = opcode</code> → duplication engine (1 FWV · 2 WV · 3 Format · 4 Format+V · 6 Write · 8 Verify)</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ D. BULK ============ -->
+  <section id="bulk">
+    <div class="snum">D</div>
+    <h2>Bulk operations</h2>
+
+    <h4>Image download — 0x0A (host_op_image_dl 0x1E37)</h4>
+    <ul class="clean">
+      <li>ACKs with <code>'X'</code>, resets counters, shows <b>"wait for data"</b>, then waits for an <b>0xAA55</b> sync word (<code>bulk_sync_aa55</code> 0x2196).</li>
+      <li>Reads a stream of <b>records</b>, each re-synced with 0xAA55. A record starts with a <b>type byte</b>: bit 7 = last-record flag, low 7 bits = type (type 1 = track/geometry record).</li>
+      <li>Track data streams straight into the <b>banked DRAM image buffer</b> (<code>OUT 0xB0</code> selects the bank); a geometry header and checksum are validated, then <code>image_present</code> is set.</li>
+    </ul>
+
+    <h4>Disk-write / format setup — 0x0D (host_op_disk_write 0x1FC6)</h4>
+    <p>Streams a small parameter block and echoes each byte: <code>cfg_flags</code> + unit, a
+      <b>write-protect byte</b> (→ 0x9C line 2 + <code>wprot_mode</code>, 0x200B), an <code>err_recovery</code>
+      byte, then a <b>24-byte per-head zone table</b> written to <code>hrd_hd0</code>. A host can thus define
+      a variable-rate <b>"Special" format</b> remotely — the same zoned per-cylinder data-rate tables the
+      front-panel Special-format menu builds. Clears <code>image_present</code>.</p>
+
+    <h4>Load &amp; execute — 0x0F (host_op_load_exec 0x206F)</h4>
+    <div class="note corr">
+      <span class="lbl">Arbitrary-code-execution path</span>
+      Runs <code>code_loader</code> (0x21A9) to receive a code blob into DRAM at <b>0x7800</b> (image window
+      at 0x8000), then <code>JP (HL)</code> into it. This is a firmware-extension / field-update hook — and,
+      by design, an <b>arbitrary-code-execution path</b> open to anything on the host serial port. It is the
+      most likely home of an externally-supplied "loader module" (the dead <code>fmt_param_tbl</code> DOS
+      geometry table at 0x326E would be read by such a downloaded program, not by the firmware).
+    </div>
+
+    <h4>I/O-vector retargeting</h4>
+    <p>Byte-level I/O (get/put/beep) goes through three RAM vectors — <code>iovec_out</code> 0x52C9,
+      <code>iovec_poll</code> 0x52CB, <code>iovec_beep</code> 0x52CD — dispatched via 0x4D89/0x4C43/0x2766.
+      The same call sites serve the local keypad, the autoloader, or the host depending on the installed
+      vectors; the <code>0x0B</code> (enter-run) opcode <b>rewrites all three</b> and jumps to the shared run
+      loop, so a host-initiated run reuses the identical duplication code path as a front-panel run.</p>
+  </section>
+
+  <footer>
+    <p>Companion to "LSK M6T912F firmware analysis" · host link = Z80 SIO channel B (0xD8/0xDC) · protocol from ROM cross-check</p>
+  </footer>
+</div>
+</body>
+</html>
