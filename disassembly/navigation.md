@@ -459,7 +459,7 @@ count of static call/branch sites into the routine.
 | `0x4401` | `dma_arm_channel` | 1 | program one 8237 DMA channel (addr/count/mode) from a descriptor |
 | `0x4457` | `dma_setup` | 1 | reset+reload 8237 channels 0/1 from the drive-block DMA descriptors |
 | `0x4489` | `fdc_dma_setup` | 1 | compute DMA transfer count: index sector-size table 0x4AA6[A*2], 16-bit multiply by BC, return count-1 in DE |
-| `0x44D5` | `fdc_set_steprate` | 4 | pack FDC specify bytes: SRT|E->0x4A5C, D<<1|B bit0->0x4A5D; A bit0 selects alt path |
+| `0x44D5` | `fdc_set_steprate` | 4 | pack FDC specify bytes: SRT\|E->0x4A5C, D<<1\|B bit0->0x4A5D; A bit0 selects alt path |
 | `0x452C` | `fdc_senseint_all` | 1 | issue Sense-Interrupt-Status (0x08) to all 4 FDCs and read their 7-byte result phases |
 | `0x4571` | `fdc_senseint_send` | 1 | write Sense-Interrupt (0x08) command byte to FDC at port C |
 | `0x4579` | `fdc_result_read7` | 1 | read 7 result-phase bytes from an FDC into buffer HL |
@@ -470,7 +470,7 @@ count of static call/branch sites into the routine.
 | `0x46F1` | `fdc_read_result` | 9 | read FDC result phase (poll RQM/DIO), up to B bytes |
 | `0x4704` | `fdc_poll_result` | 6 | poll FDC done flag (irq_bits bit7 drive0 / bit6 drive2 per A bit0), dispatch to result read |
 | `0x472D` | `fdc_poll_complete` | 16 | poll for FDC operation complete (or timeout) |
-| `0x481E` | `dram_stack_fill` | 2 | fast-fill banked DRAM (bank B via 0xB0, addr 0x8000|HL+4*D) via SP-swap block writes, count A&0x7F |
+| `0x481E` | `dram_stack_fill` | 2 | fast-fill banked DRAM (bank B via 0xB0, addr 0x8000\|HL+4*D) via SP-swap block writes, count A&0x7F |
 | `0x4848` | `timeout_start` | 9 | start command timeout timer (8253 counter 2) |
 | `0x4857` | `timeout_check` | 16 | check/tick the command timeout timer |
 | `0x4866` | `store_rate_precomp` | 5 | save data-rate (A) and precomp (B) values to 0x4B89/0x4B8A |
@@ -513,7 +513,7 @@ count of static call/branch sites into the routine.
 | `0x4E42` | `uart_tx` | 3 | SIO TX: wait TxRDY (status bit2), OUT data |
 | `0x4E4F` | `host_rx_ready` | 1 | test host SIO RxRDY: C=0xDC, IN B, bit0 = byte available |
 | `0x4E53` | `al_rx_ready` | 3 | test autoloader SIO RxRDY: C=0xD4, IN B, bit0 = byte available |
-| `0x4E5A` | `uart_rx` | 1 | SIO RX with timeout: wait RxRDY (bit0); return Z=byte / NZ=timeout|err |
+| `0x4E5A` | `uart_rx` | 1 | SIO RX with timeout: wait RxRDY (bit0); return Z=byte / NZ=timeout\|err |
 | `0x4E8C` | `uart_send_reset` | 3 | send SIO command 0x30 to port C (reset error flags / enter hunt) |
 | `0x4E91` | `al_cmd_reset` | 2 | reset autoloader SIO (C=0xD4) via command 0x30 |
 | `0x4E95` | `host_cmd_reset` | 1 | reset host SIO (C=0xDC) via command 0x30 |

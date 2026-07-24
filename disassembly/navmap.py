@@ -94,7 +94,8 @@ named = sorted(a for a, nm in addr_label.items()
                if not is_auto(nm) and not in_data(a) and not DATA_NAME.match(nm))
 def desc(a):
     d = z.COMMENTS.get(a, "")
-    return re.sub(r'\s+', ' ', d).strip()
+    d = re.sub(r'\s+', ' ', d).strip()
+    return d.replace('|', r'\|')   # escape so a comment's '|' can't break the table
 
 out = []
 w = out.append
