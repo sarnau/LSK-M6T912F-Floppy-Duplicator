@@ -16,6 +16,11 @@ blank floppies at once. It runs standalone from a front-panel menu, drives an op
 **autoloader** over RS-232, and can be driven by a host PC in a **remote-control** mode that
 streams a disk image down a dedicated data channel.
 
+Both serial links have their own dedicated references: the
+[autoloader](LSK%20M6T912F%20autoloader.md) (a separate PIC16C57/ST93C06 device — the machine is its
+*client*) and the [host remote-control protocol](LSK%20M6T912F%20host%20protocol.md) (the machine is
+the *server*). See §7 for the firmware-side summary.
+
 The firmware is a single 32 KB image. At reset it copies itself into RAM, banks the EPROM out, and
 runs entirely from RAM — which is what makes field firmware updates ("Code loading") possible.
 
