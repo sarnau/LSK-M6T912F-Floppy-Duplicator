@@ -109,9 +109,26 @@ The flat image address is `{0xB0 bank latch[7:0], Z80 A14:0}`: the **top bank bi
 (`/RAS0` vs `/RAS1`), and the lower bits are multiplexed to the SIMM's row/column address pins. Each
 30-pin SIMM presents the standard set — multiplexed address, `D0–D7` **+ one parity bit**, and a single
 `/RAS`, `/CAS`, `/WE` — so the controller drives **one `/RAS` per slot** while address/data, `/CAS` and
-`/WE` are shared; the 9th (parity) bit is **generated but not checked**. The other similar parts (U19
-`157`, U47 `245`, U62 `74`) sit away from the slots and serve the CPU/FDC paths, not the DRAM. Exact
-nets need the board schematic.
+`/WE` are shared; the 9th (parity) bit is **generated but not checked**.
+
+Standard 30-pin SIMM edge pinout the controller interfaces to (address `A0–A11`, data `DQ0–7` + parity,
+`/RAS`, `/CAS`, `/WE`, `/CASP`):
+
+| Pin | Sig | Pin | Sig | Pin | Sig |
+|---|---|---|---|---|---|
+| 1 | Vcc | 11 | A4 | 21 | /WE |
+| 2 | /CAS | 12 | A5 | 22 | Vss |
+| 3 | DQ0 | 13 | DQ3 | 23 | DQ6 |
+| 4 | A0 | 14 | A6 | 24 | A11 |
+| 5 | A1 | 15 | A7 | 25 | DQ7 |
+| 6 | DQ1 | 16 | DQ4 | 26 | DQ8 (parity Q) |
+| 7 | A2 | 17 | A8 | 27 | /RAS |
+| 8 | A3 | 18 | A9 | 28 | /CASP |
+| 9 | Vss | 19 | A10 | 29 | parity D |
+| 10 | DQ2 | 20 | DQ5 | 30 | Vcc |
+
+The other similar parts (U19 `157`, U47 `245`, U62 `74`) sit away from the slots and serve the CPU/FDC
+paths, not the DRAM. Exact nets need the board schematic.
 
 ### Clock generation
 
