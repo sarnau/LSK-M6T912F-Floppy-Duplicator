@@ -38,10 +38,10 @@ TERRA computer systems (c) 1993
 
 ## Components:
 
-- U1-U4: SMC FDC37C65C 2.88MB Floppy Disk Controller
-- U5: GAL20V8B 15LP
+- U1-U4: SMC FDC37C65C 2.88MB Floppy Disk Controller — one controller per floppy drive
+- U5: GAL20V8B 15LP — address-decode PLD (I/O chip-selects)
 - U6: SN74LS38N — Quad 2-input NAND, open-collector
-- U7: NEC D8237A DMA Controller (under sticker)
+- U7: NEC D8237A DMA Controller (under sticker) — streams sector data to the FDCs
 - U8: 74HCT373N — Octal transparent D-latch, 3-state
 - U9: MC74HCT04AN — Hex inverter
 - U10: MC74HCT04AN — Hex inverter
@@ -54,17 +54,17 @@ TERRA computer systems (c) 1993
 - U17: MC74LS93N — 4-bit binary ripple counter
 - U18: CD74HCT02E — Quad 2-input NOR gate
 - U19: 74HCT157N — Quad 2:1 data multiplexer
-- U20: 48MHz Quarzoszillator
-- U21: 32MHz Quarzoszillator
+- U20: 48MHz Quarzoszillator — high-frequency clock oscillator
+- U21: 32MHz Quarzoszillator — 32 MHz clock; ÷16 → 8253
 - U22: SN74F08N — Quad 2-input AND gate
 - U47: SN74ALS245AN — Octal bus transceiver, 3-state
-- U51: Z80 CPU
+- U51: Z80 CPU — main processor (6 MHz, IM 1)
 - U52: 74HCT157N — Quad 2:1 data multiplexer
 - U53: 74HCT157N — Quad 2:1 data multiplexer
 - U54: 74HCT157N — Quad 2:1 data multiplexer
 - U55: SN74HCT74N — Dual D flip-flop, edge-triggered
 - U56: MC74HCT138AN — 3-to-8 line decoder/demultiplexer
-- U57: 32KB EPROM
+- U57: 32KB EPROM — 32 KB firmware, shadowed into RAM
 - U58: MC74HCT245AN — Octal bus transceiver, 3-state
 - U59: MC74HCT138AN — 3-to-8 line decoder/demultiplexer
 - U60: MC74HCT138AN — 3-to-8 line decoder/demultiplexer
@@ -73,18 +73,18 @@ TERRA computer systems (c) 1993
 - U65: 74HCT373N — Octal transparent D-latch, 3-state
 - U66: 74HCT373N — Octal transparent D-latch, 3-state
 - U67: SN74HCT125N — Quad 3-state bus buffer
-- U68: PALCE20V8H-25PC/4
-- U69: NEC µPD71055 Parallel Interface Unit
-- U70: NEC D8253C Programmable Interval Timer
-- U71: Z80 SIO/0
+- U68: PALCE20V8H-25PC/4 — address-decode PLD
+- U69: NEC µPD71055 Parallel Interface Unit — drive-select, motor, and sensor lines
+- U70: NEC D8253C Programmable Interval Timer — baud clock + spindle/HRD timing
+- U71: Z80 SIO/0 — dual serial: autoloader + host
 - U72: CD74HCT02E — Quad 2-input NOR gate
-- U77: SIMMs (with AS4C14400 1M×4 RAM)
-- U78: SIMMs (with AS4C14400 1M×4 RAM)
+- U77: SIMMs (with AS4C14400 1M×4 RAM) — 4 MB image-buffer SIMM
+- U78: SIMMs (with AS4C14400 1M×4 RAM) — 4 MB image-buffer SIMM
 - U79: MC74HCT14AN — Hex Schmitt-trigger inverter
 - U83: 74HCT373N — Octal transparent D-latch, 3-state
 - U84: CD74HCT02E — Quad 2-input NOR gate
 - U85: 74HCT373N — Octal transparent D-latch, 3-state
-- U86: CAT24C02 2-Kb I2C CMOS Serial EEPROM
+- U86: CAT24C02 2-Kb I2C CMOS Serial EEPROM — config + serial-number NVRAM
 - U87: MC74HCT245AN — Octal bus transceiver, 3-state
 - U88: MC74HCT04AN — Hex inverter
-- U101: Microchip TC232CPE Dual RS-232 Transmitter/Receiver And Power Supply
+- U101: Microchip TC232CPE Dual RS-232 Transmitter/Receiver And Power Supply — level-shifts both SIO channels
