@@ -106,11 +106,19 @@ surrounding mux/latch/buffer roles are inferred from the IC types + placement (p
 | **U58/U87** 74HCT245 ×2 | bidirectional **data buffers** to the SIMM `DQ` pins |
 | **U55/U61** 74HCT74 + NOR/inverter glue | `/RAS`→mux→`/CAS` timing |
 
-**Verified U68 pinout** (continuity, power-off): outputs — **pin 17 → U77 `/RAS`**, **pin 18 → U78
-`/RAS`** (per-slot), **pin 22 → `/CAS`** (both slots), **pin 16 → `/WE`**, **pin 19 → the address-mux
-select** (U54 pin 1); inputs — **pin 3 ← Z80 `/MREQ`**, **pin 9 ← A15**, **pin 2 ← Z80 `/RFSH`**. So
-`/RAS` is genuinely per-slot, `/CAS`/`/WE`/mux all come from the PAL, and **DRAM refresh is PAL-managed,
-triggered by the Z80's own `/RFSH`**.
+**Verified by continuity probing** (power-off):
+
+- **U68 (controller) pinout** — outputs: **pin 17 → U77 `/RAS`**, **pin 18 → U78 `/RAS`** (per-slot),
+  **pin 22 → `/CAS`** (shared by both slots), **pin 16 → `/WE`**, **pin 19 → the address-mux select**
+  (U54 pin 1); inputs: **pin 3 ← Z80 `/MREQ`**, **pin 9 ← A15**, **pin 2 ← Z80 `/RFSH`**. So `/RAS` is
+  genuinely per-slot, `/CAS`/`/WE`/mux all come from the PAL, and **refresh is PAL-managed off the Z80's
+  own `/RFSH`**.
+- **Address mux** — the `157`s present the **Z80 address as the column** ('a' inputs, e.g. U54 pin 2 =
+  Z80 A8 → SIMM A8) and a **latched row** on their 'b' inputs from **U65/U66**. U54 drives the top
+  address lines A8/A9/A10 (A11 unused), so **11 muxed lines (A0–A10) → 4 M per slot → 8 MB total**.
+- **Bank/address latches = U65/U66** — data-loaded (their shared D-inputs come off the Z80 data bus via
+  the **U58 `245` buffer**), so `OUT (0xB0)` loads the bank there and it becomes the DRAM row/high
+  address. The other two `373`s (U83/U85) are I/O-port latches, not DRAM.
 
 The flat image address is `{0xB0 bank latch[7:0], Z80 A14:0}`: the **top bank bit selects which SIMM**
 (`/RAS0` vs `/RAS1`), and the lower bits are multiplexed to the SIMM's row/column address pins. Each
