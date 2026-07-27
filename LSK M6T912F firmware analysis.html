@@ -632,6 +632,35 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       <li><b>HRD diagnostics</b> measure drive mechanics using the 8253 counters as interval timers — the added timer datasheet is what made this readable.</li>
       <li><b>Simultaneous mode</b> writes all fitted drives in one pass via the parallel DMA path; spindle-speed and density options match the media.</li>
     </ul>
+
+    <h3>Audio feedback</h3>
+    <p>There are no distinct tones — <code>beep</code> (<code>0x2766</code>, via <code>iovec_beep</code> →
+      <code>buzzer_beep</code> <code>0x49E3</code>) simply pulses the buzzer <em>A</em> times (each
+      <code>buzzer_pulse</code> ≈ 13 ms, with a gap between). The "code" is the pulse count:</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Beeps</th><th>Trigger</th></tr></thead>
+      <tbody>
+        <tr><td class="p">1</td><td><b>ACCEPT</b> — a copy passed and was accepted (<code>0x10EC</code>)</td></tr>
+        <tr><td class="p">3</td><td><b>REJECT</b> — a copy failed and was rejected (<code>0x1141</code>)</td></tr>
+        <tr><td class="p">5</td><td>Error / alert — seek error, compare error, comms error, key/limit feedback</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Config toggles</h3>
+    <p>The Config menu (hold EXIT at boot) writes a handful of flags into the <code>0x31xx</code> RAM
+      block, persisted to the CAT24C02 EEPROM (settings block, internals §D):</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Item</th><th>Variable</th><th>Values / effect</th></tr></thead>
+      <tbody>
+        <tr><td>Write protect</td><td class="p">wprot_mode 0x3155</td><td>drives <code>0x9C</code> line 2 (<code>0x04</code> on / <code>0x05</code> off)</td></tr>
+        <tr><td>Data-error recovery</td><td class="p">err_recovery 0x314A</td><td>enable = <code>1</code> / disable = <code>3</code> (read in the read/verify path <code>0x0DAF</code>)</td></tr>
+        <tr><td>Serialization</td><td class="p">cfg_byte/hrd_desc_tbl bit 1</td><td>on/off (see internals §A serialization)</td></tr>
+        <tr><td>Copy direction</td><td class="p">cfg_flags bit 7</td><td>in→out / out→in</td></tr>
+        <tr><td>Maximal cylinder</td><td class="p">cfg_flags low bits</td><td>edited, clamped to <code>0x55</code>, bit 7 preserved</td></tr>
+        <tr><td>Precomp setting</td><td class="p">precomp_sel 0x3166</td><td>write-precomp index → FDC port <code>0xC2</code></td></tr>
+        <tr><td>Batch processing</td><td class="p">cfg_batch 0x311F</td><td>batch run count</td></tr>
+      </tbody>
+    </table></div>
   </section>
 
   <section id="config">

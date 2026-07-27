@@ -395,6 +395,32 @@ SPECIAL FORMATS  1–16   ·   REMOTE CONTROL  (host link)
 - **HRD diagnostics** measure drive mechanics using the 8253 counters as interval timers.
 - **Simultaneous mode** writes all fitted drives in one pass via the parallel DMA path.
 
+### Audio feedback
+
+There are no distinct tones — `beep` (`0x2766`, via `iovec_beep` → `buzzer_beep` `0x49E3`) simply pulses
+the buzzer *A* times (each `buzzer_pulse` ≈ 13 ms, with a gap between). The "code" is the pulse count:
+
+| Beeps | Trigger |
+|---|---|
+| 1 | **ACCEPT** — a copy passed and was accepted (`0x10EC`) |
+| 3 | **REJECT** — a copy failed and was rejected (`0x1141`) |
+| 5 | Error / alert — seek error, compare error, comms error, key/limit feedback |
+
+### Config toggles
+
+The Config menu (hold EXIT at boot) writes a handful of flags into the `0x31xx` RAM block, persisted to
+the CAT24C02 EEPROM (settings block, internals §D):
+
+| Item | Variable | Values / effect |
+|---|---|---|
+| Write protect | `wprot_mode` `0x3155` | drives `0x9C` line 2 (`0x04` on / `0x05` off) |
+| Data-error recovery | `err_recovery` `0x314A` | enable = `1` / disable = `3` (read in the read/verify path `0x0DAF`) |
+| Serialization | `cfg_byte`/`hrd_desc_tbl` bit 1 | on/off (see §8 serialization) |
+| Copy direction | `cfg_flags` bit 7 | in→out / out→in |
+| Maximal cylinder | `cfg_flags` low bits | edited, clamped to `0x55`, bit 7 preserved |
+| Precomp setting | `precomp_sel` `0x3166` | write-precomp index → FDC port `0xC2` |
+| Batch processing | `cfg_batch` `0x311F` | batch run count |
+
 ## 9. Config & provenance
 
 Configuration lives in the `0x31xx` RAM block and is persisted to a small **bit-banged serial
