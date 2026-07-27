@@ -105,11 +105,28 @@ DRAM controller clustered around them (inferred from the IC types + their board 
 | **U58/U87** 74HCT245 ×2 | bidirectional **data buffers** to the SIMM `DQ` pins |
 | **U55/U61** 74HCT74 + NOR/inverter glue | `/RAS`→mux→`/CAS` timing |
 
-The flat 23-bit image address is `{0xB0 bank latch[7:0], Z80 A14:0}`: the **top bank bit selects which
-SIMM** (`/RAS0` vs `/RAS1`), and the remaining 22 bits are multiplexed to the SIMM's `A0–A10` as row
-then column. Address/data lines, `/CAS` and `/WE` are shared across both slots; only `/RAS` is per-slot.
-The other similar parts (U19 `157`, U47 `245`, U62 `74`) sit away from the slots and serve the CPU/FDC
-paths, not the DRAM. Exact nets need the schematic.
+The flat image address is `{0xB0 bank latch[7:0], Z80 A14:0}`: the **top bank bit selects which SIMM**
+(`/RAS0` vs `/RAS1`), and the lower bits are multiplexed to the SIMM's row/column address pins. Each
+30-pin SIMM presents the standard set — multiplexed address, `D0–D7` **+ one parity bit**, and a single
+`/RAS`, `/CAS`, `/WE` — so the controller drives **one `/RAS` per slot** while address/data, `/CAS` and
+`/WE` are shared; the 9th (parity) bit is **generated but not checked**. The other similar parts (U19
+`157`, U47 `245`, U62 `74`) sit away from the slots and serve the CPU/FDC paths, not the DRAM. Exact
+nets need the board schematic.
+
+### Clock generation
+
+Two packaged oscillators feed **fast (`74F`/`74S`) divider logic** clustered around them (`LS`/`HCT`
+can't toggle at 32–48 MHz), producing two clock domains:
+
+| Source | Divider | Feeds |
+|---|---|---|
+| **32 MHz (U21)** | `74LS93` (U17) ÷16 → **2 MHz** `[V]` | 8253 PIT (U70) — SIO baud (÷13 → 9600) + interval timers |
+| **48 MHz (U20)** | direct; `74S112` (U13/U14) ÷2 chain | the four FDC37C65C data separators (2.88 MB / **1 Mbps**), and ÷8 → **6 MHz** Z80 (U51) |
+
+`74F04` (U16) buffers/fans-out the clocks to the four FDCs + CPU; `74F08` (U15/U22) gate or select them.
+Two crystals let each domain divide cleanly — 32 MHz → 2 MHz → 9600 baud, 48 MHz → the
+250/300/500/1000 kbps floppy data rates. Only `32 MHz ÷ 16 = 2 MHz` is firmware-proven (from the spindle-RPM
+timing); the 48 MHz routing is inferred from the part ratings and the fast-logic divider chain.
 
 ### Serial / RS-232 connections
 
