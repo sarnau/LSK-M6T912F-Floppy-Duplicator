@@ -59,10 +59,11 @@ datasheets are included for reference under [`datasheets/`](datasheets/).
 | Alliance AS4C14400 | 1M×4 DRAM (2× 4 MB SIMM = 8 MB image buffer) | bank @ B0 | `datasheets/AS4C14400 1M×4 RAM.PDF` |
 | Catalyst CAT24C02 | I²C serial EEPROM (256×8) — config + serial-number NVRAM | F0 (bit-banged I²C) | `datasheets/CAT24C02.pdf` |
 | Lattice GAL20V8B (U5) | Address-decode PLD | — | `datasheets/GAL20V8B 15LP.pdf` |
-| Lattice/AMD PALCE20V8H (U68) | Address-decode PLD | — | `datasheets/PALCE20V8.PDF` |
+| Lattice/AMD PALCE20V8H (U68) | DRAM controller (RAS/CAS/mux timing) | — | `datasheets/PALCE20V8.PDF` |
 
-Clocking: 32.000 MHz + 48.000 MHz crystals (the 8253's 2 MHz input is 32 MHz ÷ 16); address decode is
-a GAL20V8B + PALCE20V8H. The full hardware map, port table, and open questions are in the main analysis.
+Clocking: 32.000 MHz + 48.000 MHz crystals (the 8253's 2 MHz input is 32 MHz ÷ 16). The **GAL20V8B (U5)**
+handles I/O chip-select decode; the **PALCE20V8H (U68)**, sited right at the SIMM slots, is the DRAM
+controller (see [Board layout](#board-layout)). The full hardware map, port table, and open questions are in the main analysis.
 
 The **autoloader** is a separate device on the RS-232 link, built around its own controller — see the
 [autoloader reference](LSK%20M6T912F%20autoloader.md):
@@ -85,11 +86,30 @@ Approximate placement of the major chips on the front side (image above):
 | Top-right | 32.000 MHz + 48.000 MHz crystals |
 | Center | NEC µPD8237A DMA (U7, under the "KDP-05" model/serial sticker); NEC µPD8253C-2 PIT (U70); MC74HCT138 I/O decoders (U56/U59/U60); Terra Computer Systems logo |
 | Bottom-left | NEC µPD71055 PPI (U69, above the SIO); Zilog Z80 SIO/0 (U71, Z0844006PSC); Microchip TC232 line driver (U101) |
-| Bottom-center | Zilog Z80 CPU (U51, Z0840006PSC); the M6T912F firmware EPROM (**U57**, windowed, "D1/97"); PALCE20V8H (U68, address-decode PLD) |
+| Bottom-center | Zilog Z80 CPU (U51, Z0840006PSC); the M6T912F firmware EPROM (**U57**, windowed, "D1/97"); PALCE20V8H (U68, DRAM controller — see below) |
 | Right | 2× AS4C14400 DRAM SIMMs (U77/U78, 8 MB image buffer); banks of 74HCT373 latches / 74HCT157 DRAM address muxes; Catalyst CAT24C02 I²C config EEPROM (U86, near the connector) |
 
 Full connector pinouts and the complete **U1–U101** chip designator map are in
 [`PCB_INFO.md`](PCB_INFO.md).
+
+### DRAM interface
+
+The two 30-pin SIMM slots (**U77/U78**, `AS4C14400` 1M×4 → 8 MB) are driven by a small discrete-logic
+DRAM controller clustered around them (inferred from the IC types + their board placement):
+
+| Chips | Role |
+|---|---|
+| **U68** PALCE20V8H | **DRAM controller** — sequences `/RAS0`/`/RAS1`, `/CAS`, mux-select, refresh |
+| **U52/U53/U54** 74HCT157 ×3 | row/column **address multiplexer** (next to the RAM) |
+| **U65/U66/U83/U85** 74HCT373 ×4 | bank (`0xB0`) + DRAM address latches |
+| **U58/U87** 74HCT245 ×2 | bidirectional **data buffers** to the SIMM `DQ` pins |
+| **U55/U61** 74HCT74 + NOR/inverter glue | `/RAS`→mux→`/CAS` timing |
+
+The flat 23-bit image address is `{0xB0 bank latch[7:0], Z80 A14:0}`: the **top bank bit selects which
+SIMM** (`/RAS0` vs `/RAS1`), and the remaining 22 bits are multiplexed to the SIMM's `A0–A10` as row
+then column. Address/data lines, `/CAS` and `/WE` are shared across both slots; only `/RAS` is per-slot.
+The other similar parts (U19 `157`, U47 `245`, U62 `74`) sit away from the slots and serve the CPU/FDC
+paths, not the DRAM. Exact nets need the schematic.
 
 ### Serial / RS-232 connections
 

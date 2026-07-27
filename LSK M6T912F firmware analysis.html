@@ -214,7 +214,7 @@
           <tr><td>Image DRAM</td><td>U77/U78</td><td>2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB</td><td class="p">bank @ B0</td><td>Banked disk-image buffer — image banks 0x00–0xFE; bank <b>0xFF = program-RAM mirror</b></td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/AS4C14400 1M×4 RAM.PDF</code></td></tr>
           <tr><td>Line driver</td><td>U101</td><td>Microchip TC232</td><td class="p">—</td><td>RS-232 level shifting</td><td><span class="chip c-info">Reported</span></td><td><code>datasheets/Microchip TC232CPE RS232.PDF</code></td></tr>
           <tr><td>Config EEPROM</td><td>U86</td><td>Catalyst CAT24C02 (I²C, 256×8)</td><td class="p">F0 (bit-banged I²C)</td><td>Non-volatile settings + serial number (write-protect, copy dir, serialization, err-recovery, max-cyl)</td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/CAT24C02.pdf</code></td></tr>
-          <tr><td>Address decode</td><td>U5, U68</td><td>Lattice GAL20V8B + PALCE20V8H</td><td class="p">—</td><td>I/O + memory chip-select generation</td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/GAL20V8B 15LP.pdf</code> · <code>datasheets/PALCE20V8.PDF</code></td></tr>
+          <tr><td>Decode / DRAM</td><td>U5, U68</td><td>Lattice GAL20V8B + PALCE20V8H</td><td class="p">—</td><td>GAL20V8B (U5) = I/O chip-select decode; PALCE20V8H (U68) = DRAM controller (RAS/CAS/mux, at the SIMMs)</td><td><span class="chip c-info">Reported</span></td><td><code>datasheets/GAL20V8B 15LP.pdf</code> · <code>datasheets/PALCE20V8.PDF</code></td></tr>
         </tbody>
       </table>
     </div>
@@ -226,8 +226,9 @@
       that model number is from the board's sticker; the bare PCB is silkscreened <b>KOP05B</b> (see
       <code>PCB_INFO.md</code>). The &ldquo;LSK M6T912F&rdquo; is the LSK-branded build. Clocking:
       <b>32.000 MHz</b> and <b>48.000 MHz</b> crystals; the 8253's 2 MHz input is 32 MHz ÷ 16. Address
-      decode is a GAL20V8B (U5) + PALCE20V8H (U68). All larger parts are confirmed against on-board
-      markings and manufacturer datasheets.</p>
+      I/O decode is the GAL20V8B (U5); the PALCE20V8H (U68), sited at the SIMM slots, is the <b>DRAM
+      controller</b> (RAS/CAS/mux timing). All larger parts are confirmed against on-board markings and
+      manufacturer datasheets.</p>
   </section>
 
   <section id="memory">
@@ -690,7 +691,7 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
     <h2>Open questions</h2>
     <p>One genuine unknown remains (the board photo + datasheets resolved the other two).</p>
     <ul class="clean">
-      <li><b>Port 0xC0's function</b> <span class="chip c-unc">Hardware</span>. Written <code>0xFF</code> <b>exactly once</b> at boot (<code>0x0012</code>, alongside the <code>0xB0</code> bank latch) and never read or re-written. <b>Narrowed:</b> the whole <code>0x40–0x70</code> / <code>0xC0–0xC7</code> range is <b>write-only</b> (verified — <em>zero</em> <code>IN</code> reads; all inputs come from <code>0xF0</code> and the bulk channel), so <code>0xC0</code> is a <b>write-only output latch</b> in the drive/FDC-control group (with <code>0xC2</code> precomp, <code>0xC3</code> rate, <code>0xC6</code> drive-sel-b) — <em>not</em> a configured-PPI input port (ruling out the &ldquo;<code>0xFF</code> = all-input mode-word&rdquo; reading). Its chip-select comes from the board's decode logic — <b>GAL20V8B (U5) / PALCE20V8H (U68) / MC74HCT138 (U56/U59/U60)</b> (per the board designator map in <code>PCB_INFO.md</code>; note U57 is the EPROM, not a decoder). <code>0xFF</code> is an all-ones idle/deselect init. What's <em>not</em> determinable from the ROM or the single top-side board photo is the exact latch it drives — that needs the schematic, a back-side/inner-layer view, or continuity probing (find the decode output that asserts on <code>/IOWR</code> with <code>A7..0 = 0xC0</code>).</li>
+      <li><b>Port 0xC0's function</b> <span class="chip c-unc">Hardware</span>. Written <code>0xFF</code> <b>exactly once</b> at boot (<code>0x0012</code>, alongside the <code>0xB0</code> bank latch) and never read or re-written. <b>Narrowed:</b> the whole <code>0x40–0x70</code> / <code>0xC0–0xC7</code> range is <b>write-only</b> (verified — <em>zero</em> <code>IN</code> reads; all inputs come from <code>0xF0</code> and the bulk channel), so <code>0xC0</code> is a <b>write-only output latch</b> in the drive/FDC-control group (with <code>0xC2</code> precomp, <code>0xC3</code> rate, <code>0xC6</code> drive-sel-b) — <em>not</em> a configured-PPI input port (ruling out the &ldquo;<code>0xFF</code> = all-input mode-word&rdquo; reading). Its chip-select comes from the board's I/O decode logic — <b>GAL20V8B (U5) + MC74HCT138 (U56/U59/U60)</b> (the PALCE20V8H (U68) is instead the DRAM controller at the SIMM slots; U57 is the EPROM). Per the board designator map in <code>PCB_INFO.md</code>. <code>0xFF</code> is an all-ones idle/deselect init. What's <em>not</em> determinable from the ROM or the single top-side board photo is the exact latch it drives — that needs the schematic, a back-side/inner-layer view, or continuity probing (find the decode output that asserts on <code>/IOWR</code> with <code>A7..0 = 0xC0</code>).</li>
     </ul>
     <h3>Resolved during analysis</h3>
     <ul class="clean">

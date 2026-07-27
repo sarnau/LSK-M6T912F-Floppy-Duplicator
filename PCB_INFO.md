@@ -73,13 +73,13 @@ TERRA computer systems (c) 1993
 - U65: 74HCT373N — Octal transparent D-latch, 3-state
 - U66: 74HCT373N — Octal transparent D-latch, 3-state
 - U67: SN74HCT125N — Quad 3-state bus buffer
-- U68: PALCE20V8H-25PC/4 — address-decode PLD
+- U68: PALCE20V8H-25PC/4 — DRAM controller (RAS/CAS/mux timing)
 - U69: NEC µPD71055 Parallel Interface Unit — drive-select, motor, and sensor lines
 - U70: NEC D8253C Programmable Interval Timer — baud clock + spindle/HRD timing
 - U71: Z80 SIO/0 — dual serial: autoloader + host
 - U72: CD74HCT02E — Quad 2-input NOR gate
-- U77: SIMMs (with AS4C14400 1M×4 RAM) — 4 MB image-buffer SIMM
-- U78: SIMMs (with AS4C14400 1M×4 RAM) — 4 MB image-buffer SIMM
+- U77: SIMMs (with 2xAS4C14400 1M×4 RAM, BP41C1000b-6 Parity Emulation) — 1 MB image-buffer SIMM
+- U78: SIMMs (with 2xAS4C14400 1M×4 RAM, BP41C1000b-6 Parity Emulation) — 1 MB image-buffer SIMM
 - U79: MC74HCT14AN — Hex Schmitt-trigger inverter
 - U83: 74HCT373N — Octal transparent D-latch, 3-state
 - U84: CD74HCT02E — Quad 2-input NOR gate
