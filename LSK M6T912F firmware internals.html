@@ -455,18 +455,25 @@
       <code>"Insert model &lt;name&gt;"</code>; an unrecognised drive gets <b>"Not available"</b>. Each
       model sets <code>hrd_model_idx</code> (<code>0x3178</code>), which selects a row of alignment tracks.</p>
     <div class="scroll"><table>
-      <thead><tr><th>Model</th><th>ID pattern</th><th>hrd_model_idx</th><th>cyl_head</th><th>Alignment tracks</th></tr></thead>
+      <thead><tr><th>Model</th><th>ID pattern</th><th>idx</th><th>cyl_head</th><th>Geometry</th><th>Alignment tracks</th><th>Likely drive <i>(inferred)</i></th></tr></thead>
       <tbody>
-        <tr><td class="a">528-400</td><td>0x08</td><td>0</td><td>0x14</td><td>16, 39, 20, 34</td></tr>
-        <tr><td class="a">526-400</td><td>0xC8</td><td>1</td><td>0x13</td><td>32, 79, 44, 76</td></tr>
-        <tr><td class="a">325-400 (DD/special)</td><td>0x40</td><td>2</td><td>0x12</td><td>40, 79, 44, 76</td></tr>
-        <tr><td class="a">unrecognised</td><td>—</td><td>—</td><td>—</td><td>→ "Not available"</td></tr>
+        <tr><td class="a">528-400</td><td>0x08</td><td>0</td><td>0x14</td><td>40-track · DD</td><td>16, 39, 20, 34</td><td>5.25″ 360 KB</td></tr>
+        <tr><td class="a">526-400</td><td>0xC8</td><td>1</td><td>0x13</td><td>80-track · <b>HD</b></td><td>32, 79, 44, 76</td><td>5.25″ 1.2 MB</td></tr>
+        <tr><td class="a">325-400</td><td>0x40</td><td>2</td><td>0x12</td><td>80-track · <b>DD</b></td><td>40, 79, 44, 76</td><td>3.5″ 720 KB</td></tr>
+        <tr><td class="a">unrecognised</td><td>—</td><td>—</td><td>—</td><td>—</td><td>→ "Not available"</td><td>—</td></tr>
       </tbody>
     </table></div>
     <p>The seek target for a test is read from the table at <code>0x317A</code> as
-      <code>track = byte[0x317A + hrd_model_idx×4 + (index−1)]</code> (a ROM constant, never written at run
-      time). Model 0 (<b>528-400</b>) is a 40-track drive (max cyl 39); models 1–2 are 80-track (max 79).
-      Per test (model 0):</p>
+      <code>track = byte[0x317A + hrd_model_idx×4 + (index−1)]</code> (a ROM constant, never written at run time).</p>
+    <p><b>Density</b> comes from bit 7 of the model-ID byte (<code>format_desc[0xB]</code>, HD = 1 / DD = 0,
+      see §B): <code>526-400</code> keeps it set (HD, 500 kbps); <b><code>325-400</code> forces DD</b> via
+      <code>RES 7</code> at <code>0x199D</code> (250 kbps); <code>528-400</code> is the 40-track DD drive.
+      So <b><code>526-400</code> and <code>325-400</code> are the same 80-track mechanism at different
+      densities</b> — the only alignment-test difference between them is the middle radial cylinder
+      (<b>32</b> vs <b>40</b>); their eccentricity (44) and azimuth (76) tracks are identical, and
+      <code>cyl_head</code> differs by one (19 vs 18). The "likely drive" column reads the leading digit as
+      form factor (5.25″ vs 3.5″) — a strong inference from the numbers, not stated by the ROM. Per test
+      (model 0):</p>
     <div class="scroll"><table>
       <thead><tr><th>Test</th><th>Track index</th><th>Track(s)</th></tr></thead>
       <tbody>

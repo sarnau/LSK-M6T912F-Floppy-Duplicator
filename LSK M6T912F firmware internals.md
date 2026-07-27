@@ -294,16 +294,23 @@ is **auto-detected** from the drive's model-ID sense byte `format_desc[0xB]` (ma
 `0x1943`. The detected name is shown as `"Insert model <name>"`; an unrecognised drive gets
 **"Not available"**. Each model sets `hrd_model_idx` (`0x3178`), which selects a row of alignment tracks.
 
-| Model | ID pattern | `hrd_model_idx` | `cyl_head` | Alignment tracks |
-|---|---|---|---|---|
-| **528-400** | `0x08` | 0 | `0x14` | 16, 39, 20, 34 |
-| **526-400** | `0xC8` | 1 | `0x13` | 32, 79, 44, 76 |
-| **325-400** (DD/special) | `0x40` | 2 | `0x12` | 40, 79, 44, 76 |
-| *unrecognised* | — | — | — | → "Not available" |
+| Model | ID pattern | idx | `cyl_head` | Geometry | Alignment tracks | Likely drive *(inferred)* |
+|---|---|---|---|---|---|---|
+| **528-400** | `0x08` | 0 | `0x14` | 40-track · DD | 16, 39, 20, 34 | 5.25″ 360 KB |
+| **526-400** | `0xC8` | 1 | `0x13` | 80-track · **HD** | 32, 79, 44, 76 | 5.25″ 1.2 MB |
+| **325-400** | `0x40` | 2 | `0x12` | 80-track · **DD** | 40, 79, 44, 76 | 3.5″ 720 KB |
+| *unrecognised* | — | — | — | — | → "Not available" | — |
 
 The seek target for a test is read from the table at `0x317A` as
-`track = byte[0x317A + hrd_model_idx×4 + (index−1)]` (the table is a ROM constant, never written at
-run time). Model 0 (**528-400**) is a 40-track drive (max cyl 39); models 1–2 are 80-track (max 79).
+`track = byte[0x317A + hrd_model_idx×4 + (index−1)]` (a ROM constant, never written at run time).
+
+**Density** comes from bit 7 of the model-ID byte (`format_desc[0xB]`, HD = 1 / DD = 0, see §B):
+`526-400` keeps it set (HD, 500 kbps); **`325-400` forces DD** via `RES 7` at `0x199D` (250 kbps);
+`528-400` is the 40-track DD drive. So **`526-400` and `325-400` are the same 80-track mechanism at
+different densities** — the only alignment-test difference between them is the middle radial cylinder
+(**32** vs **40**); their eccentricity (44) and azimuth (76) tracks are identical, and `cyl_head`
+differs by one (19 vs 18). The "likely drive" column reads the leading digit as form factor (5.25″ vs
+3.5″) — a strong inference from the numbers, not stated by the ROM.
 
 Per test (shown for model 0):
 
