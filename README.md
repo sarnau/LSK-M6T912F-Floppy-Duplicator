@@ -21,9 +21,10 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 | `disassembly/symbols.txt` | Generated symbol table |
 | `disassembly/navmap.py` | Generator for the navigation aids (parses `sourcecode.s`) |
 | `disassembly/navigation.md` | Generated navigation aids — memory map, routine index, call graph |
-| `datasheets/` | Datasheets for the identified board chips (11 PDFs — see [Component datasheets](#component-datasheets)) |
+| `datasheets/` | Datasheets for the identified board chips (13 PDFs — see [Component datasheets](#component-datasheets)) |
 | `datasheets/controller/` | Autoloader controller datasheets — PIC16C57 MCU + ST93C06 EEPROM |
 | `PCB Front.jpg` | Top-side board photo (used in [Board layout](#board-layout)) |
+| `PCB_CONNECTORS.md` | Board reference — connector pinouts (incl. serial `K54`) and full U1–U101 chip designator map |
 
 ## The machine, briefly
 
@@ -55,6 +56,8 @@ datasheets are included for reference under [`datasheets/`](datasheets/).
 | Microchip TC232 | RS-232 line driver | — | `datasheets/Microchip TC232CPE RS232.PDF` |
 | Alliance AS4C14400 | 1M×4 DRAM (2× 4 MB SIMM = 8 MB image buffer) | bank @ B0 | `datasheets/AS4C14400 1M×4 RAM.PDF` |
 | Catalyst CAT24C02 | I²C serial EEPROM (256×8) — config + serial-number NVRAM | F0 (bit-banged I²C) | `datasheets/CAT24C02.pdf` |
+| Lattice GAL20V8B (U5) | Address-decode PLD | — | `datasheets/GAL20V8B 15LP.pdf` |
+| Lattice/AMD PALCE20V8H (U68) | Address-decode PLD | — | `datasheets/PALCE20V8.PDF` |
 
 Clocking: 32.000 MHz + 48.000 MHz crystals (the 8253's 2 MHz input is 32 MHz ÷ 16); address decode is
 a GAL20V8B + PALCE20V8H. The full hardware map, port table, and open questions are in the main analysis.
@@ -76,22 +79,35 @@ Approximate placement of the major chips on the front side (image above):
 | Region | Chips |
 |---|---|
 | Top-left | 4× SMC FDC37C65C floppy controllers (PLCC) |
-| Top-center | GAL20V8B (address-decode PLD); 74HCT glue logic |
+| Top-center | GAL20V8B (U5, address-decode PLD); 74HCT glue logic |
 | Top-right | 32.000 MHz + 48.000 MHz crystals |
-| Center | NEC µPD8237A DMA (under the "KDP-05" model/serial sticker); NEC µPD8253C-2 PIT (directly below the DMA); MC74HCT138 I/O decoders (U57 + one more); Terra Computer Systems logo |
-| Bottom-left | NEC µPD71055 PPI (directly above the SIO); Zilog Z80 SIO/0 (Z0844006PSC); Microchip TC232 line driver |
-| Bottom-center | Zilog Z80 CPU (Z0840006PSC); the M6T912F firmware EPROM (windowed, "D1/97"); PALCE20V8H (address-decode PLD) |
-| Right | 2× AS4C14400 DRAM SIMMs (8 MB image buffer); banks of 74HCT373 latches / 74HCT157 DRAM address muxes; Catalyst CAT24C02 I²C config EEPROM (near the connector) |
+| Center | NEC µPD8237A DMA (U7, under the "KDP-05" model/serial sticker); NEC µPD8253C-2 PIT (U70); MC74HCT138 I/O decoders (U56/U59/U60); Terra Computer Systems logo |
+| Bottom-left | NEC µPD71055 PPI (U69, above the SIO); Zilog Z80 SIO/0 (U71, Z0844006PSC); Microchip TC232 line driver (U101) |
+| Bottom-center | Zilog Z80 CPU (U51, Z0840006PSC); the M6T912F firmware EPROM (**U57**, windowed, "D1/97"); PALCE20V8H (U68, address-decode PLD) |
+| Right | 2× AS4C14400 DRAM SIMMs (U77/U78, 8 MB image buffer); banks of 74HCT373 latches / 74HCT157 DRAM address muxes; Catalyst CAT24C02 I²C config EEPROM (U86, near the connector) |
+
+Full connector pinouts and the complete **U1–U101** chip designator map are in
+[`PCB_CONNECTORS.md`](PCB_CONNECTORS.md).
 
 ### Serial / RS-232 connections
 
-The RS-232 hardware is clustered in the **bottom-left corner**:
+The RS-232 hardware is in the **bottom-left corner**:
 
-- **Zilog Z80 SIO/0** (`Z0844006PSC`, large 40-pin DIP) — the serial *controller*, driving both channels at TTL levels: channel A = autoloader (`D0/D4`), channel B = host PC (`D8/DC`).
-- **Microchip TC232CPE** (18-pin DIP, immediately **right of the SIO**) — the RS-232 line driver/receiver; its charge-pump caps convert the SIO's TTL to ±RS-232 line levels and back. This chip is the actual RS-232 interface — probe TTL on its SIO side, ±RS-232 on its connector side.
-- **`KS`-series edge headers** carry the level-shifted signals to the rear-panel ports: a keyed 3-pin header on the bottom edge just left of the TC232 (`KS4`), and a cabled pin-header at the left edge (`KS3`). (`KS` = Czech *konektor*.)
+- **Zilog Z80 SIO/0** (**U71**, `Z0844006PSC`) — the serial *controller*, driving both channels at TTL levels: channel A = autoloader (`D0/D4`), channel B = host PC (`D8/DC`).
+- **Microchip TC232CPE** (**U101**, immediately **right of the SIO**) — a dual RS-232 transmitter/receiver; its charge-pump caps convert the SIO's TTL to ±RS-232 line levels and back. Probe TTL on its SIO side, ±RS-232 on its connector side.
 
-Which `KS` header is the host channel vs. the autoloader channel isn't determinable from the firmware or the single top-side photo — both channels share the one TC232, so that needs the schematic or continuity-probing.
+Both channels leave the board on a single connector, **`K54`** (pinout from `PCB_CONNECTORS.md`):
+
+| Pin | Signal | | Pin | Signal |
+|---|---|---|---|---|
+| 3 | SIO DCD **B** (host) | | 4 | SIO DCD **A** (autoloader) |
+| 5 | SIO RTS B | | 6 | SIO RTS A |
+| 7 | SIO CTS B | | 8 | SIO CTS A |
+| 9 | R2 in | | 10 | R1 in |
+| 11 | T1 out | | 12 | T2 out |
+| 13 | B53 | | 14 | B54 |
+
+This **resolves the earlier "which connector carries which channel" question**: both channels share `K54`, with the **A**-suffixed handshake lines on the autoloader link and the **B**-suffixed on the host link; the TC232 (U101) supplies the two transmit/receive pairs (`T1`/`R1`, `T2`/`R2`) for TxD/RxD.
 
 ## Regenerating the disassembly
 
