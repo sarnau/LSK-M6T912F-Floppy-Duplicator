@@ -447,6 +447,41 @@
       <code>0x0E</code>→<code>0x0F</code> is a 0→1 edge on select-<code>111</code>/line 7; other lines
       <code>001</code> EPROM/RAM map, <code>010</code> write-protect, <code>100</code>/<code>101</code>
       datarate, <code>110</code> static enable). See main §3.</p>
+
+    <h4>Supported drive models &amp; which tracks are measured</h4>
+    <p>HRD alignment is only supported on <b>three drive models</b>, and the model isn't chosen from a
+      menu — it is <b>auto-detected</b> from the drive's model-ID sense byte <code>format_desc[0xB]</code>
+      (masked <code>0xC8</code>/<code>0x48</code>) at <code>0x1943</code>. The detected name is shown as
+      <code>"Insert model &lt;name&gt;"</code>; an unrecognised drive gets <b>"Not available"</b>. Each
+      model sets <code>hrd_model_idx</code> (<code>0x3178</code>), which selects a row of alignment tracks.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Model</th><th>ID pattern</th><th>hrd_model_idx</th><th>cyl_head</th><th>Alignment tracks</th></tr></thead>
+      <tbody>
+        <tr><td class="a">528-400</td><td>0x08</td><td>0</td><td>0x14</td><td>16, 39, 20, 34</td></tr>
+        <tr><td class="a">526-400</td><td>0xC8</td><td>1</td><td>0x13</td><td>32, 79, 44, 76</td></tr>
+        <tr><td class="a">325-400 (DD/special)</td><td>0x40</td><td>2</td><td>0x12</td><td>40, 79, 44, 76</td></tr>
+        <tr><td class="a">unrecognised</td><td>—</td><td>—</td><td>—</td><td>→ "Not available"</td></tr>
+      </tbody>
+    </table></div>
+    <p>The seek target for a test is read from the table at <code>0x317A</code> as
+      <code>track = byte[0x317A + hrd_model_idx×4 + (index−1)]</code> (a ROM constant, never written at run
+      time). Model 0 (<b>528-400</b>) is a 40-track drive (max cyl 39); models 1–2 are 80-track (max 79).
+      Per test (model 0):</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Test</th><th>Track index</th><th>Track(s)</th></tr></thead>
+      <tbody>
+        <tr><td class="a">Radial alignment</td><td>low entries + index-0 slot (0x3179 = 0)</td><td><b>0, 16, 39</b> (the "3 tracks")</td></tr>
+        <tr><td class="a">Eccentricity</td><td>record index 3</td><td><b>20</b></td></tr>
+        <tr><td class="a">Azimuth</td><td>record index 4</td><td><b>34</b></td></tr>
+        <tr><td class="a">Positioner / hysteresis</td><td>one track, both approach directions (|out| − |in|)</td><td>one alignment track</td></tr>
+        <tr><td class="a">Spindle speed</td><td>any readable track — needs only the index hole</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>The alignment diskette</b> must therefore carry the <code>hrd_find_burst</code> pattern — a
+      <code>0x55</code> tone (any three consecutive bytes sum to <code>0xFF</code>) — as <b>two
+      radially-offset bursts per head</b> on those cylinders, so a centred head reads them symmetrically
+      (<code>A − B ≈ 0</code>). 528-400 needs it on ≈ tracks 0/16/20/34/39; the 80-track models on
+      ≈ 32/40/44/76/79.</p>
   </section>
 
   <!-- ============ D. SERIAL ============ -->

@@ -287,6 +287,39 @@ the general `fdc_poll_complete` (0x472D) result-read pulse — one line of the 0
 other lines `001` EPROM/RAM map, `010` write-protect, `100`/`101` datarate, `110` static enable).
 See main §3.
 
+### Supported drive models & which tracks are measured
+
+HRD alignment is only supported on **three drive models**, and the model isn't chosen from a menu — it
+is **auto-detected** from the drive's model-ID sense byte `format_desc[0xB]` (masked `0xC8`/`0x48`) at
+`0x1943`. The detected name is shown as `"Insert model <name>"`; an unrecognised drive gets
+**"Not available"**. Each model sets `hrd_model_idx` (`0x3178`), which selects a row of alignment tracks.
+
+| Model | ID pattern | `hrd_model_idx` | `cyl_head` | Alignment tracks |
+|---|---|---|---|---|
+| **528-400** | `0x08` | 0 | `0x14` | 16, 39, 20, 34 |
+| **526-400** | `0xC8` | 1 | `0x13` | 32, 79, 44, 76 |
+| **325-400** (DD/special) | `0x40` | 2 | `0x12` | 40, 79, 44, 76 |
+| *unrecognised* | — | — | — | → "Not available" |
+
+The seek target for a test is read from the table at `0x317A` as
+`track = byte[0x317A + hrd_model_idx×4 + (index−1)]` (the table is a ROM constant, never written at
+run time). Model 0 (**528-400**) is a 40-track drive (max cyl 39); models 1–2 are 80-track (max 79).
+
+Per test (shown for model 0):
+
+| Test | Track index | Track(s) |
+|---|---|---|
+| Radial alignment | low entries + the index-0 slot (`0x3179` = 0) | **0, 16, 39** (the "3 tracks") |
+| Eccentricity | record index 3 | **20** |
+| Azimuth | record index 4 | **34** |
+| Positioner / hysteresis | one track, seeked from **both directions** (`\|out\| − \|in\|`) | one alignment track |
+| Spindle speed | any readable track — needs only the index hole | — |
+
+**The alignment diskette** must therefore carry the `hrd_find_burst` pattern — a `0x55` tone (any three
+consecutive bytes sum to `0xFF`) — as **two radially-offset bursts per head** on those cylinders, so a
+centred head reads them symmetrically (`A − B ≈ 0`). `528-400` needs it on ≈ tracks 0/16/20/34/39;
+the 80-track models on ≈ 32/40/44/76/79.
+
 ---
 
 ## D. Serial protocol handlers
