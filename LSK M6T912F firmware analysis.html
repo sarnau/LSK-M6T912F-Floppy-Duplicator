@@ -260,7 +260,7 @@
         <tbody>
           <tr><td class="p">52F0</td><td class="p">C7</td><td>Firmware self-check reference — verified <code>sum8(0x0100..0x52EF)=0xC7</code>; boot compares at 0x0128, mismatch → &ldquo;CODE TRANSFER ERROR&rdquo;. Computed sum is stored at 0x52EF (0x00 in the static image).</td></tr>
           <tr><td class="p">52F1</td><td class="p">AA</td><td>Validity magic marker.</td></tr>
-          <tr><td class="p">52FE/FF</td><td class="p">2198</td><td>16-bit end-of-content word, <b>referenced by no instruction</b>; not a CRC-16 or additive sum over the obvious ranges — most likely an external programmer / build checksum, not verified by the firmware.</td></tr>
+          <tr><td class="p">52FE/FF</td><td class="p">2198</td><td>16-bit end-of-content word, <b>referenced by no instruction</b>. An exhaustive search — 10 CRC-16 variants (CCITT/XMODEM/KERMIT/ARC/MODBUS/X25/GENIBUS…), additive/word/ones-complement sums, Fletcher-16, Adler-16, complement-to-zero, byte-swapped — over 8 candidate ranges gave <b>no match</b>, so it's an external programmer / build checksum (proprietary algorithm), not verified by the firmware.</td></tr>
         </tbody>
       </table>
     </div>
