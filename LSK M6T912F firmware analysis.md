@@ -29,27 +29,29 @@ Origin markers in the strings — `Adresa =` (Czech/Slovak/Croatian "address"), 
 
 ## 2. Chipset
 
-| Function | Part | Ports | Role | Status | Datasheet |
-|---|---|---|---|---|---|
-| CPU | Zilog Z0840006 (Z80, 6 MHz) | — | Main processor, interrupt mode 1 | [V] | `datasheets/Zilog Z0840006PSC Z80 CPU.pdf` |
-| Floppy ×4 | SMC FDC37C65C | 00/10/20/30 | Four µPD765-compatible controllers | [V] | `datasheets/SMC FDC37C65C 2.88MB Floppy Disk Controller.pdf` |
-| DMA | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] | `datasheets/NEC D8237A DMA Controller.pdf` |
-| Timer | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] | `datasheets/NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
-| Serial | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] | `datasheets/Zilog Z0844006PSC SIO.pdf` · `datasheets/Zilog Z80SIO Technica Manual.pdf` |
-| Parallel I/O | NEC µPD71055 PPI (+ 74HCT373 latches) | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate | [V] | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
-| Display | HD44780 LCD (2×20) | E0/E8 | Front-panel character display | [V] | `datasheets/Hiatchi HD44780 LCD.pdf` |
-| Image DRAM | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `datasheets/AS4C14400 1M×4 RAM.PDF` |
-| Line driver | Microchip TC232 | — | RS-232 level shifting | [R] | `datasheets/Microchip TC232CPE RS232.PDF` |
-| Config EEPROM | Catalyst CAT24C02 (I²C, 256×8) | F0 (bit-banged I²C) | Non-volatile settings + serial number (write-protect, copy dir, serialization, err-recovery, max-cyl) | [V] | `datasheets/CAT24C02.pdf` |
+| Function | Ref | Part | Ports | Role | Status | Datasheet |
+|---|---|---|---|---|---|---|
+| CPU | U51 | Zilog Z0840006 (Z80, 6 MHz) | — | Main processor, interrupt mode 1 | [V] | `datasheets/Zilog Z0840006PSC Z80 CPU.pdf` |
+| Floppy ×4 | U1–U4 | SMC FDC37C65C | 00/10/20/30 | Four µPD765-compatible controllers | [V] | `datasheets/SMC FDC37C65C 2.88MB Floppy Disk Controller.pdf` |
+| DMA | U7 | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] | `datasheets/NEC D8237A DMA Controller.pdf` |
+| Timer | U70 | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] | `datasheets/NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
+| Serial | U71 | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] | `datasheets/Zilog Z0844006PSC SIO.pdf` · `datasheets/Zilog Z80SIO Technica Manual.pdf` |
+| Parallel I/O | U69 | NEC µPD71055 PPI (+ 74HCT373 latches) | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate | [V] | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
+| Display | K51 | HD44780 LCD (2×20) — module via connector K51 | E0/E8 | Front-panel character display | [V] | `datasheets/Hiatchi HD44780 LCD.pdf` |
+| Image DRAM | U77/U78 | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `datasheets/AS4C14400 1M×4 RAM.PDF` |
+| Line driver | U101 | Microchip TC232 | — | RS-232 level shifting | [R] | `datasheets/Microchip TC232CPE RS232.PDF` |
+| Config EEPROM | U86 | Catalyst CAT24C02 (I²C, 256×8) | F0 (bit-banged I²C) | Non-volatile settings + serial number (write-protect, copy dir, serialization, err-recovery, max-cyl) | [V] | `datasheets/CAT24C02.pdf` |
+| Address decode | U5, U68 | Lattice GAL20V8B + PALCE20V8H | — | I/O + memory chip-select generation | [V] | `datasheets/GAL20V8B 15LP.pdf` · `datasheets/PALCE20V8.PDF` |
 
 The parallel I/O is a **single µPD71055 PPI** (there is no Z8420 PIO — an earlier assumption that has
 been corrected); together with discrete 74HCT373 latches it drives the digital motor/select/sense
 lines. The traced code writes those ports as plain write-only latches without a distinctive mode-word
 init, so the exact PPI-vs-373 split per port isn't pinned from firmware alone (a minor residual).
 
-The board itself is a **Terra Computer Systems KDP-05 B** (Czech Republic, © 1993) — the "LSK M6T912F"
-is the LSK-branded build. Clocking: **32.000 MHz** and **48.000 MHz** crystals; the 8253's 2 MHz input
-is 32 MHz ÷ 16. Address decode is handled by a GAL20V8B + PALCE20V8H. All larger parts are confirmed
+The device is the **Terra Computer Systems KDP-05 B** (Czech Republic, © 1993) — that model number is
+from the board's sticker; the bare PCB is silkscreened **KOP05B** (see `PCB_CONNECTORS.md`). The "LSK
+M6T912F" is the LSK-branded build. Clocking: **32.000 MHz** and **48.000 MHz** crystals; the 8253's 2 MHz
+input is 32 MHz ÷ 16. Address decode is handled by a GAL20V8B (U5) + PALCE20V8H (U68). All larger parts are confirmed
 against on-board markings and manufacturer datasheets.
 
 ## 3. Memory architecture

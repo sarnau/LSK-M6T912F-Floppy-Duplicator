@@ -34,8 +34,10 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
   the program-RAM mirror.
 - **Chipset:** 4× SMC FDC37C65C floppy controllers, NEC µPD8237A DMA (one channel per FDC),
   NEC µPD8253C PIT, a Zilog **Z80 SIO** (dual-channel serial: autoloader + host), HD44780 2×20 LCD,
-  a µPD71055 PPI + 74HCT373 drive latches, and a `0x9C` 8-line addressable control latch. The board is
-  a Terra Computer Systems **KDP-05 B** (Czech Republic, © 1993); the LSK M6T912F is the LSK-branded build.
+  a µPD71055 PPI + 74HCT373 drive latches, and a `0x9C` 8-line addressable control latch. The device is
+  the Terra Computer Systems **KDP-05 B** (Czech Republic, © 1993) — model from the board sticker; the
+  bare PCB is silkscreened **KOP05B** (see [`PCB_CONNECTORS.md`](PCB_CONNECTORS.md)). The LSK M6T912F is
+  the LSK-branded build.
 - **Modes:** front-panel **Manual**, **Autoloader** (serial), and a **host remote-control** protocol
   (the machine acts as the server).
 
@@ -72,7 +74,7 @@ The **autoloader** is a separate device on the RS-232 link, built around its own
 
 ## Board layout
 
-![LSK M6T912F firmware board — Terra Computer Systems KDP-05 B (front)](PCB%20Front.jpg)
+![LSK M6T912F firmware board — Terra Computer Systems KDP-05 B (KOP05B PCB), front](PCB%20Front.jpg)
 
 Approximate placement of the major chips on the front side (image above):
 
