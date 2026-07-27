@@ -211,13 +211,27 @@
       front-panel Special-format menu builds. Clears <code>image_present</code>.</p>
 
     <h4>Load &amp; execute — 0x0F (host_op_load_exec 0x206F)</h4>
+    <p><code>code_loader</code> (0x21A9) prints <b>"Code loading"</b>, <code>LDIR</code>-copies a 256-byte
+      bootstrap loader (<code>dl_code</code>) into RAM at <b>0x7800</b>, and <code>JP</code>s into it. The
+      relocated loader then pulls the new image over the <b>bulk parallel channel</b> — <i>not</i> the SIO:
+      port <code>0x90</code> = data, port <code>0x94</code> bit 6 = data-ready, with a per-byte handshake
+      toggled on the <code>0x9C</code> latch (<code>0x0E</code> assert / <code>0x0F</code> deassert).</p>
+    <p>Download protocol (<code>dl_code</code>, running at 0x7800):</p>
+    <ul class="clean">
+      <li><b>Sync</b> on a ramp — 16 ascending bytes 0,1,…,15 then 16 descending 15,…,0; any mismatch restarts.</li>
+      <li><b>Header</b> — three 16-bit words: byte count, destination address, entry address.</li>
+      <li><b>Payload</b> — stream <i>count</i> bytes into the DRAM staging bank <b>0xFE</b> at 0x8000, accumulating an additive checksum.</li>
+      <li><b>Verify</b> — read the expected checksum byte; mismatch → abort (<code>RET NZ</code>).</li>
+      <li><b>Commit</b> — <code>LDIR</code> the staged bytes to the header's destination, then <code>JP (HL)</code> into the entry point.</li>
+    </ul>
     <div class="note corr">
       <span class="lbl">Arbitrary-code-execution path</span>
-      Runs <code>code_loader</code> (0x21A9) to receive a code blob into DRAM at <b>0x7800</b> (image window
-      at 0x8000), then <code>JP (HL)</code> into it. This is a firmware-extension / field-update hook — and,
-      by design, an <b>arbitrary-code-execution path</b> open to anything on the host serial port. It is the
-      most likely home of an externally-supplied "loader module" (the dead <code>fmt_param_tbl</code> DOS
-      geometry table at 0x326E would be read by such a downloaded program, not by the firmware).
+      Because the running firmware lives in writable <b>bank-0xFF RAM</b>, a downloaded image can rewrite
+      the firmware in place and re-checksum it — the whole reason for the shadowed-ROM / bank-0xFF design.
+      The same <code>code_loader</code> is also reachable from the front-panel <b>Config → "Code loading"</b>
+      menu, so it isn't host-only. By design it is an <b>arbitrary-code-execution path</b>; the dead
+      <code>fmt_param_tbl</code> DOS-geometry table (0x326E) is the kind of thing an externally-supplied
+      loader module would consume.
     </div>
 
     <h4>I/O-vector retargeting</h4>

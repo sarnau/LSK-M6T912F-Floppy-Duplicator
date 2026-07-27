@@ -381,6 +381,39 @@
       <code>format_desc</code>. Those two offsets are BPB sectors-per-track / interleave, unrelated to
       the copy-scratch bytes at <code>format_desc+13/+15</code>.
     </div>
+
+    <h4>The formatted boot sector — fat12_template (0x3305)</h4>
+    <p>Formatting (as opposed to copying a master) builds a real, <b>PC-bootable FAT12 boot sector</b>
+      from a 73-byte ROM template. The template supplies the fixed shell; the <b>BPB geometry fields</b>
+      (bytes/sector, sector counts, media byte, FAT layout, sectors/track, heads) are patched in from the
+      selected format's 19-byte BPB record, copied to <code>image_buf+0xB</code> at <code>0x1D36</code>.
+      The <code>0x55AA</code> signature is stamped separately at <code>0x81FE</code>.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Field</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td class="a">Jump</td><td><code>EB 4E 90</code> (<code>JMP 0x4E; NOP</code>)</td></tr>
+        <tr><td class="a">OEM name</td><td><code>"Jumbo   "</code></td></tr>
+        <tr><td class="a">BPB (offset 0x0B…)</td><td><i>filled per-format from the BPB record</i></td></tr>
+        <tr><td class="a">FS type</td><td><code>"FAT12   "</code></td></tr>
+        <tr><td class="a">Boot code</td><td>prints <b>"Non system disk"</b>, then reboots (below)</td></tr>
+        <tr><td class="a">Signature @ 0x1FE</td><td><code>55 AA</code> (stamped at 0x81FE)</td></tr>
+      </tbody>
+    </table></div>
+    <p>The boot code is the textbook "non-system disk" stub — <code>E8 10 00</code> calls past the inline
+      message string, then:</p>
+    <pre class="asm">5B         POP BX          <span class="c">; BX -&gt; "Non system disk" message</span>
+B4 0E      MOV AH,0x0E     <span class="c">; INT 10h teletype</span>
+2E 8A 07   MOV AL,CS:[BX]  <span class="c">; next char</span>
+3C 00      CMP AL,0        <span class="c">; end of string?</span>
+74 05      JZ  +5
+CD 10      INT 10h         <span class="c">; print it</span>
+43         INC BX
+EB F2      JMP loop
+30 E4      XOR AH,AH       <span class="c">; INT 16h read-key</span>
+CD 16      INT 16h         <span class="c">; wait for a keypress</span>
+EA 00 00 FF FF  JMP FFFF:0000  <span class="c">; reboot</span></pre>
+    <p>So a blank formatted on this machine actually <b>boots on a PC and prints "Non system disk"</b> —
+      the OEM string in the produced media is <code>Jumbo</code>.</p>
   </section>
 
   <!-- ============ C. HRD + 8253 ============ -->

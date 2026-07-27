@@ -229,6 +229,41 @@ one track-copy pass.
 > `format_desc`. Those two offsets are BPB sectors-per-track / interleave, unrelated to the copy-scratch
 > bytes at `format_desc+13/+15`.
 
+### The formatted boot sector — `fat12_template` (0x3305)
+
+Formatting (as opposed to copying a master) builds a real, **PC-bootable FAT12 boot sector** from a
+73-byte ROM template. The template supplies the fixed shell; the **BPB geometry fields** (bytes/sector,
+sector counts, media byte, FAT layout, sectors/track, heads) are patched in from the selected format's
+19-byte BPB record, copied to `image_buf+0xB` at `0x1D36`. The `0x55AA` signature is stamped separately
+at `0x81FE`.
+
+| Field | Value |
+|---|---|
+| Jump | `EB 4E 90` (`JMP 0x4E; NOP`) |
+| **OEM name** | `"Jumbo   "` |
+| BPB (offset 0x0B…) | *filled per-format from the BPB record* |
+| FS type | `"FAT12   "` |
+| Boot code | prints **"Non system disk"**, then reboots (below) |
+| Signature @ 0x1FE | `55 AA` (stamped at `0x81FE`) |
+
+The boot code is the textbook "non-system disk" stub — `E8 10 00` calls past the inline message string,
+then:
+```
+5B         POP BX          ; BX -> "Non system disk" message
+B4 0E      MOV AH,0x0E     ; INT 10h teletype
+2E 8A 07   MOV AL,CS:[BX]  ; next char
+3C 00      CMP AL,0        ; end of string?
+74 05      JZ  +5
+CD 10      INT 10h         ; print it
+43         INC BX
+EB F2      JMP loop
+30 E4      XOR AH,AH       ; INT 16h read-key
+CD 16      INT 16h         ; wait for a keypress
+EA 00 00 FF FF  JMP FFFF:0000  ; reboot
+```
+So a blank formatted on this machine actually **boots on a PC and prints "Non system disk"** — the OEM
+string in the produced media is `Jumbo`.
+
 ---
 
 ## C. HRD diagnostics & the 8253 timer

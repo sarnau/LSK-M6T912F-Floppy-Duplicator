@@ -98,11 +98,24 @@ builds). Clears `image_present`.
 
 ## Load & execute — `0x0F` (host_op_load_exec 0x206F)
 
-Runs `code_loader` (`0x21A9`) to receive a code blob into DRAM at **`0x7800`** (with the image window at
-`0x8000`), then **`JP (HL)`** into it. This is a general firmware-extension / field-update hook — and,
-by design, an **arbitrary-code-execution path** available to anything on the host serial port. It is the
-most likely home of an externally-supplied "loader module" (the `fmt_param_tbl` DOS-geometry table at
-`0x326E`, dead in this ROM, would be read by such a downloaded program rather than by the firmware).
+`code_loader` (`0x21A9`) prints **"Code loading"**, `LDIR`-copies a 256-byte bootstrap loader
+(`dl_code`) into RAM at **`0x7800`**, and `JP`s into it. The relocated loader then pulls the new image
+over the **bulk parallel channel** — *not* the SIO: port `0x90` = data, port `0x94` bit 6 = data-ready,
+with a per-byte handshake toggled on the `0x9C` latch (`0x0E` assert / `0x0F` deassert).
+
+Download protocol (`dl_code`, running at `0x7800`):
+
+1. **Sync** on a ramp — 16 ascending bytes `0,1,…,15` then 16 descending `15,…,0`; any mismatch restarts.
+2. **Header** — three 16-bit words: byte count, destination address, entry address.
+3. **Payload** — stream `count` bytes into the DRAM **staging bank `0xFE`** at `0x8000`, accumulating an additive checksum.
+4. **Verify** — read the expected checksum byte; mismatch → abort (`RET NZ`).
+5. **Commit** — `LDIR` the staged bytes to the header's destination, then `JP (HL)` into the entry point.
+
+Because the running firmware lives in writable **bank-`0xFF` RAM**, a downloaded image can rewrite the
+firmware in place and re-checksum it — the whole reason for the shadowed-ROM / bank-`0xFF` design. The
+same `code_loader` is also reachable from the front-panel **Config → "Code loading"** menu, so it isn't
+host-only. By design it is an **arbitrary-code-execution path**; the dead `fmt_param_tbl` DOS-geometry
+table (`0x326E`) is the kind of thing an externally-supplied loader module would consume.
 
 ## I/O-vector retargeting
 
