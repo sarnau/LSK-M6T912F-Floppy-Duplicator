@@ -24,7 +24,7 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 | `datasheets/` | Datasheets for the identified board chips (13 PDFs — see [Component datasheets](#component-datasheets)) |
 | `datasheets/controller/` | Autoloader controller datasheets — PIC16C57 MCU + ST93C06 EEPROM |
 | `PCB Front.jpg` | Top-side board photo (used in [Board layout](#board-layout)) |
-| `PCB_CONNECTORS.md` | Board reference — connector pinouts (incl. serial `K54`) and full U1–U101 chip designator map |
+| `PCB_INFO.md` | Board reference — connector pinouts (incl. serial `K54`) and full U1–U101 chip designator map |
 
 ## The machine, briefly
 
@@ -36,7 +36,7 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
   NEC µPD8253C PIT, a Zilog **Z80 SIO** (dual-channel serial: autoloader + host), HD44780 2×20 LCD,
   a µPD71055 PPI + 74HCT373 drive latches, and a `0x9C` 8-line addressable control latch. The device is
   the Terra Computer Systems **KDP-05 B** (Czech Republic, © 1993) — model from the board sticker; the
-  bare PCB is silkscreened **KOP05B** (see [`PCB_CONNECTORS.md`](PCB_CONNECTORS.md)). The LSK M6T912F is
+  bare PCB is silkscreened **KOP05B** (see [`PCB_INFO.md`](PCB_INFO.md)). The LSK M6T912F is
   the LSK-branded build.
 - **Modes:** front-panel **Manual**, **Autoloader** (serial), and a **host remote-control** protocol
   (the machine acts as the server).
@@ -89,7 +89,7 @@ Approximate placement of the major chips on the front side (image above):
 | Right | 2× AS4C14400 DRAM SIMMs (U77/U78, 8 MB image buffer); banks of 74HCT373 latches / 74HCT157 DRAM address muxes; Catalyst CAT24C02 I²C config EEPROM (U86, near the connector) |
 
 Full connector pinouts and the complete **U1–U101** chip designator map are in
-[`PCB_CONNECTORS.md`](PCB_CONNECTORS.md).
+[`PCB_INFO.md`](PCB_INFO.md).
 
 ### Serial / RS-232 connections
 
@@ -98,7 +98,7 @@ The RS-232 hardware is in the **bottom-left corner**:
 - **Zilog Z80 SIO/0** (**U71**, `Z0844006PSC`) — the serial *controller*, driving both channels at TTL levels: channel A = autoloader (`D0/D4`), channel B = host PC (`D8/DC`).
 - **Microchip TC232CPE** (**U101**, immediately **right of the SIO**) — a dual RS-232 transmitter/receiver; its charge-pump caps convert the SIO's TTL to ±RS-232 line levels and back. Probe TTL on its SIO side, ±RS-232 on its connector side.
 
-Both channels leave the board on a single connector, **`K54`** (pinout from `PCB_CONNECTORS.md`):
+Both channels leave the board on a single connector, **`K54`** (pinout from `PCB_INFO.md`):
 
 | Pin | Signal | | Pin | Signal |
 |---|---|---|---|---|
