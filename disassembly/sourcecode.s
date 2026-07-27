@@ -1055,9 +1055,9 @@ loc_088A:
 08A2  20 14         JR NZ,loc_08B8  ; not a copy-type op -> skip serial copy
 
 loc_08A4:
-08A4  3A 72 31      LD A,(serial_flag)  ; get serial image bank number
+08A4  3A 72 31      LD A,(serial_bank)  ; get serial image bank number
 08A7  ED 5B 73 31   LD DE,(serial_addr)  ; load destination address for serial block
-08AB  21 68 31      LD HL,serial_nr  ; source = stored serial number bytes
+08AB  21 68 31      LD HL,serial_num_lo  ; source = stored serial number bytes
 08AE  01 04 00      LD BC,0x0004  ; copy 4 bytes of serial number
 08B1  D3 B0         OUT (0xB0),A  ; dram_bank — select DRAM image bank holding this sector
 08B3  ED B0         LDIR  ; block-copy serial bytes into image bank
@@ -1763,15 +1763,15 @@ loc_0DE6:
 0E0D  CB 4F         BIT 1,A  ; test serial-number patch enable (bit1)
 0E0F  28 35         JR Z,verify_compare  ; no serial patch -> go straight to compare
 0E11  2A 35 31      LD HL,(datarate_idx)  ; load current track/head index
-0E14  3A 6D 31      LD A,(serial_head)  ; get head where serial lives
-0E17  BD            CP L  ; does this pass match the serial head?
-0E18  20 2C         JR NZ,verify_compare  ; wrong head -> skip serial patch, compare
+0E14  3A 6D 31      LD A,(serial_cyl)  ; get the cylinder where the serial number lives
+0E17  BD            CP L  ; does the current track match the serial cylinder?
+0E18  20 2C         JR NZ,verify_compare  ; wrong cylinder -> skip serial patch, compare
 0E1A  7C            LD A,H  ; take index high byte
 0E1B  E6 80         AND 0x80  ; isolate top bit
 0E1D  07            RLCA  ; rotate it into bit0 -> side flag
 0E1E  67            LD H,A  ; store computed side into H
-0E1F  3A 6E 31      LD A,(serial_sector)  ; get sector holding the serial number
-0E22  BC            CP H  ; does side/sector match target?
+0E1F  3A 6E 31      LD A,(serial_head)  ; get the head holding the serial number
+0E22  BC            CP H  ; does the head/side match the serial head?
 0E23  20 21         JR NZ,verify_compare  ; mismatch -> skip patch, compare
 0E25  11 00 58      LD DE,0x5800  ; scratch buffer base 0x5800
 0E28  2A 75 31      LD HL,(serial_ptr)  ; serial byte offset within track
@@ -1879,10 +1879,10 @@ loc_0EB6:
 0EE2  CB 4F         BIT 1,A  ; test serial-patch enable (bit1)
 0EE4  28 31         JR Z,loc_0F17  ; not enabled -> go to compare
 0EE6  2A 35 31      LD HL,(datarate_idx)  ; load track/head index
-0EE9  3A 6D 31      LD A,(serial_head)  ; serial head value
+0EE9  3A 6D 31      LD A,(serial_cyl)  ; serial cylinder value
 0EEC  BD            CP L  ; matches this pass's head?
 0EED  20 28         JR NZ,loc_0F17  ; wrong head -> skip patch
-0EEF  3A 6E 31      LD A,(serial_sector)  ; get serial sector
+0EEF  3A 6E 31      LD A,(serial_head)  ; get serial head
 0EF2  FE 01         CP 0x01  ; is it sector 1?
 0EF4  20 21         JR NZ,loc_0F17  ; no -> skip patch
 0EF6  11 00 58      LD DE,0x5800  ; scratch base 0x5800
@@ -2081,16 +2081,16 @@ loc_103C:
 105D  20 31         JR NZ,batch_loop_tail  ; none matched -> batch tail
 
 loc_105F:
-105F  2A 68 31      LD HL,(serial_nr)  ; load current serial number (low word)
-1062  3A 6C 31      LD A,(serial_cyl)  ; load per-disk serial increment step
+105F  2A 68 31      LD HL,(serial_num_lo)  ; load current serial number (low word)
+1062  3A 6C 31      LD A,(serial_incr)  ; load per-disk serial increment step
 1065  5F            LD E,A  ; E = increment step (low byte)
 1066  16 00         LD D,0x00  ; D = 0 (16-bit extend)
 1068  19            ADD HL,DE  ; serial += step
-1069  22 68 31      LD (serial_nr),HL  ; store serial number low word
-106C  2A 6A 31      LD HL,(serial_incr)  ; load serial number high word
+1069  22 68 31      LD (serial_num_lo),HL  ; store serial number low word
+106C  2A 6A 31      LD HL,(serial_num_hi)  ; load serial number high word
 106F  11 00 00      LD DE,0x0000  ; DE=0: propagate only the carry into the high word
 1072  ED 5A         ADC HL,DE  ; propagate carry into serial high word
-1074  22 6A 31      LD (serial_incr),HL  ; store serial number high word
+1074  22 6A 31      LD (serial_num_hi),HL  ; store serial number high word
 1077  18 17         JR batch_loop_tail  ; -> batch tail
 
 loc_1079:
@@ -3438,22 +3438,22 @@ loc_1B32:
 1B50  CA 88 07      JP Z,dup_engine_loop  ; skip serial setup, run directly for compare mode
 1B53  CD 59 4C      CALL lcd_print  ; print the inline prompt string
 1B56  0C 49 6E 69 74 69 +  DB \f, "Initial serial Nr.", 0  ; inline string: 'Initial serial Nr.'
-1B6A  2A 68 31      LD HL,(serial_nr)  ; load current serial number
+1B6A  2A 68 31      LD HL,(serial_num_lo)  ; load current serial number
 1B6D  22 43 31      LD (edit_value),HL  ; seed edit field with it
-1B70  2A 6A 31      LD HL,(serial_incr)  ; load serial increment
+1B70  2A 6A 31      LD HL,(serial_num_hi)  ; load serial number high word
 1B73  22 45 31      LD (edit_value_hi),HL  ; seed hi edit field with it
 1B76  06 08         LD B,0x08  ; 8-digit edit field
 1B78  3E 0A         LD A,0x0A  ; field type/base-10 code
 1B7A  CD C3 04      CALL edit_num_field  ; edit the initial serial number
 1B7D  C8            RET Z  ; abort if user cancelled
 1B7E  2A 43 31      LD HL,(edit_value)  ; read edited value
-1B81  22 68 31      LD (serial_nr),HL  ; store new serial number
+1B81  22 68 31      LD (serial_num_lo),HL  ; store new serial number
 1B84  2A 45 31      LD HL,(edit_value_hi)  ; read edited increment
-1B87  22 6A 31      LD (serial_incr),HL  ; store new serial increment
+1B87  22 6A 31      LD (serial_num_hi),HL  ; store serial number high word
 1B8A  CD 59 4C      CALL lcd_print  ; print the inline prompt string
 1B8D  0C 49 6E 63 72 65 +  DB \f, "Increment", 0  ; inline string: 'Increment'
-1B98  3A 6C 31      LD A,(serial_cyl)  ; load serial cylinder byte
-1B9B  6F            LD L,A  ; serial_cyl -> L (low byte of edit value)
+1B98  3A 6C 31      LD A,(serial_incr)  ; load the current increment step
+1B9B  6F            LD L,A  ; increment -> L (low byte of edit value)
 1B9C  26 00         LD H,0x00  ; zero-extend into HL
 1B9E  22 43 31      LD (edit_value),HL  ; seed edit field
 1BA1  6C            LD L,H  ; L = 0
@@ -3463,13 +3463,13 @@ loc_1B32:
 1BA9  CD C3 04      CALL edit_num_field  ; edit cylinder increment
 1BAC  C8            RET Z  ; abort if user cancelled
 1BAD  3A 43 31      LD A,(edit_value)  ; read edited value
-1BB0  32 6C 31      LD (serial_cyl),A  ; store serial cylinder increment
+1BB0  32 6C 31      LD (serial_incr),A  ; store the per-copy increment step
 
 loc_1BB3:
 1BB3  CD 59 4C      CALL lcd_print  ; print the inline prompt string
 1BB6  0C 43 79 6C 69 6E +  DB \f, "Cylinder", 0  ; inline string: 'Cylinder'
-1BC0  3A 6D 31      LD A,(serial_head)  ; load serial head byte
-1BC3  6F            LD L,A  ; serial_head -> L (low byte of edit value)
+1BC0  3A 6D 31      LD A,(serial_cyl)  ; load the serial target cylinder
+1BC3  6F            LD L,A  ; cylinder -> L (low byte of edit value)
 1BC4  26 00         LD H,0x00  ; zero-extend into HL
 1BC6  22 43 31      LD (edit_value),HL  ; seed edit field
 1BC9  6C            LD L,H  ; L = 0
@@ -3481,13 +3481,13 @@ loc_1BB3:
 1BD5  21 DD 52      LD HL,format_desc  ; point at format geometry descriptor
 1BD8  CD A5 1C      CALL check_cyl_limit  ; validate value against cylinder/geometry limit
 1BDB  38 D6         JR C,loc_1BB3  ; re-prompt if out of range
-1BDD  32 6D 31      LD (serial_head),A  ; store serial head value
+1BDD  32 6D 31      LD (serial_cyl),A  ; store serialization target cylinder
 
 loc_1BE0:
 1BE0  CD 59 4C      CALL lcd_print  ; print the inline prompt string
 1BE3  0C 48 65 61 64 00  DB \f, "Head", 0  ; inline string: 'Head'
-1BE9  3A 6E 31      LD A,(serial_sector)  ; load serial sector byte
-1BEC  6F            LD L,A  ; serial_sector -> L (low byte of edit value)
+1BE9  3A 6E 31      LD A,(serial_head)  ; load the serial target head
+1BEC  6F            LD L,A  ; head -> L (low byte of edit value)
 1BED  26 00         LD H,0x00  ; zero-extend into HL
 1BEF  22 43 31      LD (edit_value),HL  ; seed edit field
 1BF2  6C            LD L,H  ; L = 0
@@ -3499,13 +3499,13 @@ loc_1BE0:
 1BFE  21 DE 52      LD HL,format_desc+0x1  ; point at sector limit in format descriptor
 1C01  CD A5 1C      CALL check_cyl_limit  ; validate against limit
 1C04  38 DA         JR C,loc_1BE0  ; re-prompt if out of range
-1C06  32 6E 31      LD (serial_sector),A  ; store serial sector value
+1C06  32 6E 31      LD (serial_head),A  ; store serialization target head
 
 loc_1C09:
 1C09  CD 59 4C      CALL lcd_print  ; print the inline prompt string
 1C0C  0C 53 65 63 74 6F +  DB \f, "Sector", 0  ; inline string: 'Sector'
-1C14  3A 6F 31      LD A,(serial_offset)  ; load serial offset byte
-1C17  6F            LD L,A  ; serial_offset -> L (low byte of edit value)
+1C14  3A 6F 31      LD A,(serial_sector)  ; load the serial target sector
+1C17  6F            LD L,A  ; sector -> L (low byte of edit value)
 1C18  26 00         LD H,0x00  ; zero-extend into HL
 1C1A  22 43 31      LD (edit_value),HL  ; seed edit field
 1C1D  6C            LD L,H  ; L = 0
@@ -3522,12 +3522,12 @@ loc_1C09:
 1C33  A7            AND A  ; test value == 0
 1C34  CC AC 1C      CALL Z,show_out_of_range  ; reject a zero value as out of range
 1C37  38 D0         JR C,loc_1C09  ; re-prompt if rejected
-1C39  32 6F 31      LD (serial_offset),A  ; store serial offset value
+1C39  32 6F 31      LD (serial_sector),A  ; store serialization target sector
 
 loc_1C3C:
 1C3C  CD 59 4C      CALL lcd_print  ; print the inline prompt string
 1C3F  0C 4F 66 66 73 65 +  DB \f, "Offset", 0  ; inline string: 'Offset'
-1C47  2A 70 31      LD HL,(serial_pos)  ; load current serial position
+1C47  2A 70 31      LD HL,(serial_offset)  ; load the byte offset within the sector
 1C4A  22 43 31      LD (edit_value),HL  ; seed edit field
 1C4D  21 00 00      LD HL,0x0000  ; HL=0 for the hi edit field
 1C50  22 45 31      LD (edit_value_hi),HL  ; clear hi edit field
@@ -3550,20 +3550,20 @@ loc_1C3C:
 1C70  18 CA         JR loc_1C3C  ; re-prompt for position
 
 loc_1C72:
-1C72  22 70 31      LD (serial_pos),HL  ; store serial position
-1C75  ED 4B 6D 31   LD BC,(serial_head)  ; load head/sector word (C=head, B=sector)
-1C79  79            LD A,C  ; begin B<->C swap via A (A=serial_head)
-1C7A  48            LD C,B  ; C = serial_sector
-1C7B  47            LD B,A  ; B = serial_head (swap complete)
-1C7C  CB 09         RRC C  ; RRC C: rotate serial_sector right (C holds sector after swap)
-1C7E  3A 6F 31      LD A,(serial_offset)  ; load serial offset
+1C72  22 70 31      LD (serial_offset),HL  ; store serialization byte offset
+1C75  ED 4B 6D 31   LD BC,(serial_cyl)  ; load head/sector word (C=head, B=sector)
+1C79  79            LD A,C  ; begin B<->C swap via A (A = serial cylinder)
+1C7A  48            LD C,B  ; C = serial head
+1C7B  47            LD B,A  ; B = serial cylinder (swap complete)
+1C7C  CB 09         RRC C  ; RRC C: rotate the head bit (C = head after swap)
+1C7E  3A 6F 31      LD A,(serial_sector)  ; load the serial target sector
 1C81  CD A5 2B      CALL track_buf_ptr  ; compute track buffer pointer
-1C84  32 72 31      LD (serial_flag),A  ; store returned serial flag
-1C87  ED 5B 70 31   LD DE,(serial_pos)  ; load serial position
+1C84  32 72 31      LD (serial_bank),A  ; store the serial-stamp image bank
+1C87  ED 5B 70 31   LD DE,(serial_offset)  ; load the byte offset
 1C8B  19            ADD HL,DE  ; add position offset to pointer
 1C8C  22 73 31      LD (serial_addr),HL  ; store serial write address
-1C8F  2A 70 31      LD HL,(serial_pos)  ; reload serial position
-1C92  3A 6F 31      LD A,(serial_offset)  ; load serial offset
+1C8F  2A 70 31      LD HL,(serial_offset)  ; reload the byte offset
+1C92  3A 6F 31      LD A,(serial_sector)  ; load the serial target sector
 1C95  CD AB 2B      CALL track_ptr_scale  ; scale pointer by offset
 1C98  22 75 31      LD (serial_ptr),HL  ; store scaled serial pointer
 1C9B  CD A1 1C      CALL jump_phase_handler  ; dispatch to the run-phase handler
@@ -6447,34 +6447,34 @@ precomp_sel:
 ; precomp menu value + serialization-enable bit
 hrd_desc_tbl:
 3167  02                                              |.|
-; serialization: current serial number (word)
-serial_nr:
+; serialization: 32-bit serial number, low word
+serial_num_lo:
 3168  00 00                                           |..|
-; serialization: increment added per disk (word)
-serial_incr:
+; serialization: 32-bit serial number, high word
+serial_num_hi:
 316A  00 00                                           |..|
+; serialization: increment added to the number per copy
+serial_incr:
+316C  00                                              |.|
 ; serialization: target cylinder for the stamp
 serial_cyl:
-316C  00                                              |.|
+316D  00                                              |.|
 ; serialization: target head for the stamp
 serial_head:
-316D  00                                              |.|
+316E  00                                              |.|
 ; serialization: target sector for the stamp
 serial_sector:
-316E  00                                              |.|
-; serialization: byte offset within the sector (init 1)
-serial_offset:
 316F  01                                              |.|
-; serialization: computed write position (word)
-serial_pos:
+; serialization: byte offset within the sector
+serial_offset:
 3170  00 00                                           |..|
-; serialization: sub-flag / bit-verify toggle
-serial_flag:
+; serialization: image bank for the stamp (via OUT 0xB0)
+serial_bank:
 3172  00                                              |.|
-; serialization: write-buffer address (word)
+; serialization: computed write address in the image
 serial_addr:
 3173  00 00                                           |..|
-; serialization: image pointer for the serial stamp (word)
+; serialization: scaled byte pointer for the stamp
 serial_ptr:
 3175  00 00 00                                        |...|
 ; HRD head/model index

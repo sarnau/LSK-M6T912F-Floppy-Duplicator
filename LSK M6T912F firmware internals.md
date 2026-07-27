@@ -46,6 +46,41 @@ The RD+ family is meta-phase 7 + sub-mode `0x314F` (1=FWV, 2=WV, 5=FW, 6=W); lau
 `0x10D2`. Each target owns its channel + block, so a failed target sets its group bit and is rejected
 while others continue. `[?]` no separate per-target "alive" mask beyond the two group bits.
 
+### Serialization — disk auto-numbering
+
+When enabled (`cfg_byte`/`hrd_desc_tbl` bit 1), the machine stamps a **unique, auto-incrementing
+serial number** into every copy at a user-configured location — the classic commercial-duplicator
+licensing/tracking feature. The number is a **32-bit** value written as **4 bytes** into one sector.
+
+The **config editor** (`config_serialization` `0x2369` enables it; the field editor at `0x1B6A–0x1C98`
+is reached from the run setup) prompts for six fields in order, each validated against the current
+`format_desc` geometry:
+
+| Screen | Stores to | Meaning |
+|---|---|---|
+| "Initial serial Nr." | `serial_num_lo`/`serial_num_hi` (`0x3168`/`0x316A`) | starting number (8 decimal digits → 32-bit) |
+| "Increment" | `serial_incr` (`0x316C`) | amount added to the number per copy |
+| "Cylinder" | `serial_cyl` (`0x316D`) | target cylinder |
+| "Head" | `serial_head` (`0x316E`) | target head |
+| "Sector" | `serial_sector` (`0x316F`) | target sector |
+| "Offset" | `serial_offset` (`0x3170`) | byte offset within the sector |
+
+After the last field, `track_buf_ptr` (`0x2BA5`) turns cyl/head/sector into a DRAM image **bank**
+(`serial_bank` `0x3172`) + **write address** (`serial_addr` `0x3173`), and `track_ptr_scale` yields a
+**scaled byte pointer** (`serial_ptr` `0x3175`).
+
+**Stamp** (`0x08A4`, on write-type ops 2/4/6 only): `OUT (0xB0)` selects `serial_bank`, then a 4-byte
+`LDIR` copies `serial_num_lo`/`_hi` into the image at `serial_addr`, and **`set_bank_checksum`
+(`0x519C`) recomputes that bank's checksum** so the later verify pass still matches the now-patched
+image. During verify (`0x0E11`, `0x0EE2`) the same 4 bytes are mirrored into the read-back scratch on
+the matching cylinder/head so the serial region isn't falsely flagged as a mismatch. After each copy the
+number advances (`0x105F`: `serial_num += serial_incr`, carry propagated across the 32-bit value).
+
+> **Symbol-labeling fix:** the `serial_*` variables were previously mislabeled — the names were
+> **shifted by one field** (e.g. the byte the "Increment" screen edits was named `serial_cyl`). Proven
+> from the config editor's on-screen prompts, the block `0x3168–0x3175` is now relabeled to the roles
+> above. (Earlier revisions of this listing named `0x316C` `serial_cyl`, `0x316A` `serial_incr`, etc.)
+
 ---
 
 ## B. FDC command engine

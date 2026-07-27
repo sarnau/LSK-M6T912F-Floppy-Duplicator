@@ -169,6 +169,44 @@
       state block, a target that fails verify only sets its group's error bit and is rejected — the
       others continue. <span class="chip c-unc">Uncertain</span> no separate per-target "alive" mask
       beyond the two group bits was found (fits a 2-media-group design).</p>
+
+    <h4>Serialization — disk auto-numbering</h4>
+    <p>When enabled (<code>cfg_byte</code>/<code>hrd_desc_tbl</code> bit 1), the machine stamps a
+      <b>unique, auto-incrementing serial number</b> into every copy at a user-configured location — the
+      classic commercial-duplicator licensing/tracking feature. The number is a <b>32-bit</b> value
+      written as <b>4 bytes</b> into one sector.</p>
+    <p>The config editor (<code>config_serialization</code> 0x2369 enables it; the field editor at
+      0x1B6A–0x1C98 is reached from run setup) prompts for six fields, each validated against the current
+      <code>format_desc</code> geometry:</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Screen</th><th>Stores to</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="a">"Initial serial Nr."</td><td><code>serial_num_lo</code>/<code>serial_num_hi</code> (0x3168/0x316A)</td><td>starting number (8 decimal digits → 32-bit)</td></tr>
+        <tr><td class="a">"Increment"</td><td><code>serial_incr</code> (0x316C)</td><td>amount added to the number per copy</td></tr>
+        <tr><td class="a">"Cylinder"</td><td><code>serial_cyl</code> (0x316D)</td><td>target cylinder</td></tr>
+        <tr><td class="a">"Head"</td><td><code>serial_head</code> (0x316E)</td><td>target head</td></tr>
+        <tr><td class="a">"Sector"</td><td><code>serial_sector</code> (0x316F)</td><td>target sector</td></tr>
+        <tr><td class="a">"Offset"</td><td><code>serial_offset</code> (0x3170)</td><td>byte offset within the sector</td></tr>
+      </tbody>
+    </table></div>
+    <p>After the last field, <code>track_buf_ptr</code> (0x2BA5) turns cyl/head/sector into a DRAM image
+      <b>bank</b> (<code>serial_bank</code> 0x3172) + <b>write address</b> (<code>serial_addr</code>
+      0x3173), and <code>track_ptr_scale</code> yields a <b>scaled byte pointer</b>
+      (<code>serial_ptr</code> 0x3175).</p>
+    <p><b>Stamp</b> (0x08A4, on write-type ops 2/4/6 only): <code>OUT (0xB0)</code> selects
+      <code>serial_bank</code>, then a 4-byte <code>LDIR</code> copies <code>serial_num_lo/_hi</code> into
+      the image at <code>serial_addr</code>, and <b><code>set_bank_checksum</code> (0x519C) recomputes
+      that bank's checksum</b> so the later verify pass still matches the patched image. During verify
+      (0x0E11, 0x0EE2) the same 4 bytes are mirrored into the read-back scratch on the matching
+      cylinder/head so the serial region isn't falsely flagged. After each copy the number advances
+      (0x105F: <code>serial_num += serial_incr</code>, carry propagated across the 32-bit value).</p>
+    <div class="note corr">
+      <span class="lbl">Symbol-labeling fix</span>
+      The <code>serial_*</code> variables were previously mislabeled — the names were <b>shifted by one
+      field</b> (e.g. the byte the "Increment" screen edits was named <code>serial_cyl</code>). Proven
+      from the config editor's on-screen prompts, the block 0x3168–0x3175 is now relabeled to the roles
+      above.
+    </div>
   </section>
 
   <!-- ============ B. FDC COMMAND ENGINE ============ -->
