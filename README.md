@@ -94,16 +94,23 @@ Full connector pinouts and the complete **U1–U101** chip designator map are in
 
 ### DRAM interface
 
-The two 30-pin SIMM slots (**U77/U78**, `AS4C14400` 1M×4 → 8 MB) are driven by a small discrete-logic
-DRAM controller clustered around them (inferred from the IC types + their board placement):
+The two 30-pin SIMM slots (**U77/U78**, `AS4C14400` 1M×4) are driven by a small discrete-logic DRAM
+controller clustered around them. **U68's role is confirmed by continuity probing** (below); the
+surrounding mux/latch/buffer roles are inferred from the IC types + placement (probing in progress):
 
 | Chips | Role |
 |---|---|
-| **U68** PALCE20V8H | **DRAM controller** — sequences `/RAS0`/`/RAS1`, `/CAS`, mux-select, refresh |
+| **U68** PALCE20V8H | **DRAM controller** `[V]` — `/RAS0`/`/RAS1`, `/CAS`, `/WE`, mux-select, refresh |
 | **U52/U53/U54** 74HCT157 ×3 | row/column **address multiplexer** (next to the RAM) |
 | **U65/U66/U83/U85** 74HCT373 ×4 | bank (`0xB0`) + DRAM address latches |
 | **U58/U87** 74HCT245 ×2 | bidirectional **data buffers** to the SIMM `DQ` pins |
 | **U55/U61** 74HCT74 + NOR/inverter glue | `/RAS`→mux→`/CAS` timing |
+
+**Verified U68 pinout** (continuity, power-off): outputs — **pin 17 → U77 `/RAS`**, **pin 18 → U78
+`/RAS`** (per-slot), **pin 22 → `/CAS`** (both slots), **pin 16 → `/WE`**, **pin 19 → the address-mux
+select** (U54 pin 1); inputs — **pin 3 ← Z80 `/MREQ`**, **pin 9 ← A15**, **pin 2 ← Z80 `/RFSH`**. So
+`/RAS` is genuinely per-slot, `/CAS`/`/WE`/mux all come from the PAL, and **DRAM refresh is PAL-managed,
+triggered by the Z80's own `/RFSH`**.
 
 The flat image address is `{0xB0 bank latch[7:0], Z80 A14:0}`: the **top bank bit selects which SIMM**
 (`/RAS0` vs `/RAS1`), and the lower bits are multiplexed to the SIMM's row/column address pins. Each
