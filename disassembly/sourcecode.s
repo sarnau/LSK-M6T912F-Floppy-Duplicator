@@ -6,8 +6,8 @@
 000A  21 00 80      LD HL,image_buf  ; point HL at image_buf (0x8000) for stack base
 000D  F9            LD SP,HL  ; set SP just below image buffer (grows down from 0x8000)
 000E  3E FF         LD A,0xFF  ; bank value 0xFF = program-RAM mirror
-0010  D3 B0         OUT (0xB0),A  ; dram_bank — select DRAM bank 0xFF (program-RAM mirror) via dram_bank
-0012  D3 C0         OUT (0xC0),A  ; latch 0xFF to port 0xC0 (PPI/latch drive-control init)
+0010  D3 B0         OUT (0xB0),A  ; dram_bank — set DRAM bank low byte = 0xFF (program-RAM mirror)
+0012  D3 C0         OUT (0xC0),A  ; dram_bank_hi — set DRAM bank high byte = 0xFF (the {0xC0,0xB0} bank pair) [probed]
 0014  01 FF 5F      LD BC,0x5FFF  ; copy count 0x5FFF bytes (EPROM->DRAM relocation)
 0017  21 22 00      LD HL,boot_cont  ; source = boot_cont in EPROM
 001A  11 22 80      LD DE,image_buf+0x22  ; dest = image_buf+0x22 in shadow DRAM bank

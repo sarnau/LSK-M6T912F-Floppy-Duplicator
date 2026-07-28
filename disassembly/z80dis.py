@@ -428,7 +428,7 @@ PORTS = {
     0x8F:'dma_wrmask',  # W: write all 4 mask bits at once
     0x9C:'ctrl_latch',
     0xA0:'pit_c0', 0xA4:'pit_c1', 0xA8:'pit_c2', 0xAC:'pit_ctrl',
-    0xB0:'dram_bank', 0xB1:'fdc_reg', 0xC2:'fdc_precomp', 0xC3:'fdc_rate', 0xC6:'drive_sel_b',
+    0xB0:'dram_bank', 0xB1:'fdc_reg', 0xC0:'dram_bank_hi', 0xC2:'fdc_precomp', 0xC3:'fdc_rate', 0xC6:'drive_sel_b',
     0xD0:'al_data', 0xD4:'al_stat', 0xD8:'host_data', 0xDC:'host_stat',
     0xE0:'lcd_cmd', 0xE8:'lcd_data', 0xF0:'panel', 0x90:'bulk_data', 0x94:'status_in', 0x98:'key_scan',
     0x40:'drv_lat0', 0x50:'drv_lat1', 0x60:'drv_lat2', 0x70:'drv_lat3',

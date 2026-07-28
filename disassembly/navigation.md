@@ -101,6 +101,7 @@ cd disassembly && python3 navmap.py sourcecode.s > navigation.md
 | `0xAC` | pit_ctrl |
 | `0xB0` | dram_bank |
 | `0xB1` | fdc_reg |
+| `0xC0` | dram_bank_hi |
 | `0xC2` | fdc_precomp |
 | `0xC3` | fdc_rate |
 | `0xC6` | drive_sel_b |
