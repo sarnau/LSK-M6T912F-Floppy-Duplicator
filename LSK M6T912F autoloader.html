@@ -103,7 +103,7 @@
     <p class="muted" style="font-size:13px;margin-top:12px">Sources: <span class="chip c-ok">GT</span> ground truth (wire + terminal) ·
       <span class="chip c-ok">FW</span> proven from the duplicator disassembly ·
       <span class="chip c-ok">HW</span> chip datasheets / board. The autoloader's own firmware was not dumped —
-      its internals are described from the outside. See the <a href="LSK M6T912F firmware analysis.html">main analysis</a> and <a href="LSK M6T912F firmware internals.html">internals</a>.</p>
+      its internals are described from the outside. See the <a href="LSK M6T912F firmware analysis.html">main analysis</a>.</p>
   </header>
 
   <div class="note">
@@ -238,7 +238,7 @@
         <code>I</code>/insert and shown by <code>show_model_cycles</code>. This is the number the
         duplicator's menus display.</li>
     </ul>
-    <p>Duplicator-side handlers live in the firmware internals, §D (Serial protocol handlers): the client
+    <p>Duplicator-side handlers live in the firmware analysis, §8 (Serial &amp; protocols): the client
       command/ACK loop (0x13D9), the status decode (0x1286), the connection probe (0x0220). The link's
       electrical side (Z80 SIO + TC232 line driver) is in the README <i>Serial / RS-232 connections</i>.</p>
   </section>

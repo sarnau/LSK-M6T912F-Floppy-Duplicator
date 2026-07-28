@@ -127,7 +127,7 @@ the identical duplication code path as a front-panel run.
 
 ## Cross-reference
 
-The duplicator-side handlers are also summarised in the firmware internals, §D (Serial protocol
-handlers). The physical link (Z80 SIO channel B + TC232 line driver, the `KS` edge connectors) is in the
+The duplicator-side handlers are also summarised in the firmware analysis, §8 (Serial & protocols).
+The physical link (Z80 SIO channel B + TC232 line driver, the `KS` edge connectors) is in the
 README *Serial / RS-232 connections*. The autoloader link (the machine as *client*) is documented
 separately in the **Autoloader** reference.

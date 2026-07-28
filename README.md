@@ -11,8 +11,7 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 | Path | What it is |
 |---|---|
 | `LSK M6T912F D1_97.bin` | The original 32 KB EPROM image (the subject binary) |
-| `LSK M6T912F firmware analysis.md` / `.html` | Main analysis — hardware map, memory architecture, boot sequence, I/O port map, open questions |
-| `LSK M6T912F firmware internals.md` / `.html` | Companion drill-downs — duplication engine, FDC command engine, HRD diagnostics + 8253 timer, serial protocol handlers |
+| `LSK M6T912F firmware analysis.md` / `.html` | The reference — hardware map, memory architecture, boot, I/O ports, floppy/FDC engine, duplication engine, serial protocols, UI, HRD diagnostics, config (analysis + byte-level internals in one document) |
 | `LSK M6T912F autoloader.md` / `.html` | Autoloader device reference — PIC16C57 / ST93C06 hardware, serial command set (S/C/I/A/R/O/V), status codes |
 | `LSK M6T912F host protocol.md` / `.html` | Host remote-control protocol reference — server loop, 4-byte packet, opcode table, image download / load-exec |
 | `disassembly/z80dis.py` | Custom two-pass Z80 disassembler (symbols, comments, data regions, offset labels) |
@@ -66,7 +65,7 @@ datasheets are included for reference under [`datasheets/`](datasheets/).
 Clocking: 32.000 MHz + 48.000 MHz crystals (the 8253's 2 MHz input is 32 MHz ÷ 16). The **GAL20V8B (U5)**
 handles I/O chip-select decode; the **PALCE20V8H (U68)**, sited right at the SIMM slots, is the DRAM
 controller and also the low-memory arbiter — it drives the EPROM's `/CE` (U57 pin 20) and holds the
-ROM→RAM shadow (see [Board layout](#board-layout)). The full hardware map, port table, and open questions are in the main analysis.
+ROM→RAM shadow (see [Board layout](#board-layout)). The full hardware map and port table are in the main analysis.
 
 The **autoloader** is a separate device on the RS-232 link, built around its own controller — see the
 [autoloader reference](LSK%20M6T912F%20autoloader.md):

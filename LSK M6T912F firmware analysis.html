@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LSK M6T912F Firmware Analysis</title>
+<title>LSK M6T912F Firmware — Analysis &amp; Internals</title>
 <style>
   :root{
     --bg:#e7e6e1; --surface:#f6f5f1; --surface-2:#efeee8; --ink:#23252b; --ink-soft:#54575f;
@@ -79,9 +79,16 @@
     text-transform:uppercase;color:var(--ink-soft);font-weight:600;white-space:nowrap;position:sticky;top:0}
   tbody tr:last-child td{border-bottom:0}
   tbody tr:hover{background:color-mix(in srgb,var(--amber) 6%,transparent)}
-  td.p{font-family:var(--mono);color:var(--amber);white-space:nowrap;font-weight:600}
+  td.p,td.a{font-family:var(--mono);color:var(--amber);white-space:nowrap;font-weight:600}
   td .mono,td code{font-size:12.5px}
   .tnum{font-variant-numeric:tabular-nums}
+  h4{font-size:13px;font-weight:700;margin:24px 0 6px;font-family:var(--mono);color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.06em}
+  pre.asm{font-family:var(--mono);font-size:12px;line-height:1.6;background:var(--surface);
+    border:1px solid var(--line);border-left:3px solid var(--amber-soft);border-radius:0 6px 6px 0;
+    padding:14px 16px;overflow-x:auto;color:var(--ink);margin:14px 0}
+  pre.asm .c{color:var(--ink-faint)}
+  pre.asm b{color:var(--amber);font-weight:600}
 
   /* ---- chips ---- */
   .chip{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
@@ -141,11 +148,13 @@
 <div class="wrap">
 
   <header class="mast">
-    <div class="eyebrow">Firmware Teardown · Z80 · 1996</div>
+    <div class="eyebrow">Firmware Teardown · Analysis &amp; Internals · Z80</div>
     <h1>LSK M6T912F Floppy Duplicator</h1>
     <p class="lede">A complete reverse-engineering of a 32&nbsp;KB EPROM: a four-drive gang floppy
       duplicator with an optional mechanical autoloader, built by LSK Data Systems. Disassembled,
-      cross-referenced against the board's datasheets, and verified instruction-by-instruction.</p>
+      cross-referenced against the board's datasheets, and verified instruction-by-instruction — with
+      byte-level internals of the FDC/DMA engine, the duplication engine, the serial protocols, and the
+      HRD diagnostics folded into each subsystem.</p>
     <div class="specrow">
       <span class="spec">CPU&nbsp; <b>Zilog Z80</b></span>
       <span class="spec">ROM&nbsp; <b>32&nbsp;KB · 27C256</b></span>
@@ -168,10 +177,10 @@
     <a href="#boot"><span>04</span> Boot sequence</a>
     <a href="#ports"><span>05</span> I/O port map</a>
     <a href="#fdc"><span>06</span> Floppy subsystem</a>
-    <a href="#serial"><span>07</span> Serial &amp; protocols</a>
-    <a href="#ui"><span>08</span> UI &amp; features</a>
-    <a href="#config"><span>09</span> Config &amp; provenance</a>
-    <a href="#open"><span>10</span> Open questions</a>
+    <a href="#dup"><span>07</span> Duplication engine</a>
+    <a href="#serial"><span>08</span> Serial &amp; protocols</a>
+    <a href="#ui"><span>09</span> UI &amp; features</a>
+    <a href="#config"><span>10</span> Config &amp; provenance</a>
   </nav>
 
   <section id="overview">
@@ -185,7 +194,7 @@
       <a href="LSK M6T912F autoloader.html">autoloader</a> (a separate PIC16C57/ST93C06 device — the
       machine is its <em>client</em>) and the
       <a href="LSK M6T912F host protocol.html">host remote-control protocol</a> (the machine is the
-      <em>server</em>). See §7 for the firmware-side summary.</p>
+      <em>server</em>). See §8 for the firmware-side treatment.</p>
     <p>The firmware is a single 32&nbsp;KB image. At reset it copies itself into RAM, banks the
       EPROM out, and runs entirely from RAM — which is what makes field firmware updates
       (&ldquo;Code loading&rdquo;) possible. Every claim below was checked against a purpose-written
@@ -218,8 +227,7 @@
         </tbody>
       </table>
     </div>
-    <p class="muted">The parallel I/O is a <b>single µPD71055 PPI (U69)</b> (there is no Z8420 PIO — an earlier
-      assumption, since corrected), now board-confirmed at ports <code>0x90/0x94/0x98/0x9C</code>
+    <p class="muted">The parallel I/O is a <b>single µPD71055 PPI (U69)</b> at ports <code>0x90/0x94/0x98/0x9C</code>
       (register-select = Z80 A3/A2): Port A = host bulk-image data, Port B = <code>status_in</code>, Port C =
       the <code>0x9C</code> control latch. The <code>0x40–0x70</code> drive-select/motor lines are separate
       discrete 74HCT373 latches.</p>
@@ -310,12 +318,11 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
 
     <div class="note">
       <span class="lbl">Verified — the mapping is set-once</span>
-      <code>OUT (0xB0),0xFF</code> runs exactly once (<code>0x0010</code>); every later <code>0xB0</code> write loads an <em>image</em> bank (<code>track_bank_a/b</code>, or <code>0xFE</code> scratch), never 0xFF. So the bank-0xFF selection is never re-commanded, and the ROM→RAM shadow (a U68 function, below) latches once and holds. The same trace yields a useful side-observation about port <code>0x9C</code>: <code>fdc_poll_complete</code> pulses it (<code>0x0E</code>→6 NOPs→<code>0x0F</code>, <code>0x475E</code>) with the PC running straight through those NOPs from low RAM. A plain 8-bit register at <code>0x9C</code> couldn't survive that (writing <code>0x0E</code> after the boot <code>0x92</code> would corrupt the earlier state) — so <code>0x9C</code> had to be an <b>addressable per-line latch</b>. Board probing since confirmed exactly that: it is the <b>µPD71055 PPI (U69) control register</b>, driven by 8255 Bit-Set/Reset (below), while the low-memory map itself turned out to be a separate <b>U68 PAL</b> function, not a <code>0x9C</code> bit.
+      <code>OUT (0xB0),0xFF</code> runs exactly once (<code>0x0010</code>); every later <code>0xB0</code> write loads an <em>image</em> bank (<code>track_bank_a/b</code>, or <code>0xFE</code> scratch), never 0xFF, so the bank-0xFF selection is never re-commanded and the ROM→RAM shadow (a U68 function, below) latches once and holds. Port <code>0x9C</code> is an <b>addressable per-line latch</b>, not a plain register: <code>fdc_poll_complete</code> pulses it (<code>0x0E</code>→6 NOPs→<code>0x0F</code>, <code>0x475E</code>) while the PC runs straight through from low RAM — a plain register write of <code>0x0E</code> would corrupt the boot <code>0x92</code>, so each write must address one line only. That latch is the <b>µPD71055 PPI (U69) control register</b> (below); the low-memory map is a separate <b>U68 PAL</b> function, not a <code>0x9C</code> bit.
     </div>
 
     <h3>The 0x0000–0x7FFF map is a U68 (PAL) function <span class="chip c-ok">Probed</span></h3>
-    <p>An earlier draft attributed the ROM→RAM swap to <code>OUT (0x9C),0x92</code>. Board continuity probing
-      has <b>corrected this</b>: the swap is a function of the DRAM-controller PAL <b>U68</b>, not the 0x9C write.</p>
+    <p>The ROM→RAM swap is a function of the DRAM-controller PAL <b>U68</b>, shown by board continuity probing:</p>
     <ul class="clean">
       <li><code>U57 /OE</code> (pin 22) = <b>GND</b> — the EPROM's output is always enabled.</li>
       <li><code>U57 /CE</code> (pin 20) → <b>U68 pin 20</b> — the PAL gates the EPROM's chip-select.</li>
@@ -330,11 +337,10 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       (below).</p>
 
     <h3>0x9C is the µPD71055 PPI (U69) control register <span class="chip c-ok">Probed</span></h3>
-    <p><code>0x9C</code> behaves as an addressable per-line latch because it <b>is</b> one: it is the control
-      register of the <b>µPD71055 PPI (U69)</b>, driven with 8255 <b>Bit-Set/Reset</b> commands. Each BSR write
-      sets or clears exactly one <b>Port C</b> bit and leaves the rest intact — precisely why the
-      <code>0x0E</code>→<code>0x0F</code> FDC strobe never disturbs the datarate/enable lines (the property that
-      first proved 0x9C was an addressable latch, not a plain register). Probing confirms U69: register-select
+    <p>Port <code>0x9C</code> is the control register of the <b>µPD71055 PPI (U69)</b>, driven with 8255
+      <b>Bit-Set/Reset</b> commands: each BSR write sets or clears exactly one <b>Port C</b> bit and leaves the
+      rest intact — which is why the <code>0x0E</code>→<code>0x0F</code> FDC strobe never disturbs the
+      datarate/enable lines. Probing confirms U69: register-select
       <code>A1/A0</code> = Z80 <code>A3/A2</code> (so control = <code>0x9C</code>; Port A/B/C =
       <code>0x90</code>/<code>0x94</code>/<code>0x98</code>), chip-select off the <code>0x90</code> I/O decode,
       <code>/WR</code> gated through the U72 NOR cluster.</p>
@@ -380,12 +386,10 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       <code>0x0E</code>) and written to PC6 once at boot (<code>0x03C2</code>), never cleared — a
       permanently-asserted global enable. The real write-precompensation is a separate path:
       <code>fdc_datarate_precomp</code> (<code>0x1141</code>) computes it per-geometry and outputs to FDC port
-      <code>0xC2</code> (<code>fdc_precomp</code>). <em>(The disassembly symbol was renamed from the misleading
-      <code>precomp_val</code> to <code>drv_active_cfg</code> to reflect this.)</em></p>
-    <p>The board probe resolves what firmware alone could not: the chip (<b>U69</b>), the register decode, and
-      three of the eight Port C destinations (PC0/PC1 → K52 keypad, PC3 → U74 direction). The remaining five
-      (PC2, PC4–PC7) are firm from firmware; their FDC/drive-side pins can be board-confirmed but were out of
-      scope for this pass. Newly-catalogued chip: <b>U74</b>, the host bulk-image Port-A transceiver.</p>
+      <code>0xC2</code> (<code>fdc_precomp</code>).</p>
+    <p>Board probing confirms the chip (<b>U69</b>), the register decode, and the destinations of PC0/PC1
+      (→ K52 keypad) and PC3 (→ U74). PC2 and PC4–PC7 are firm from firmware; their FDC/drive-side pins are not
+      yet board-traced. Newly-catalogued chip: <b>U74</b>, the host bulk-image Port-A transceiver.</p>
   </section>
 
   <section id="boot">
@@ -424,34 +428,23 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
         <thead><tr><th>Port(s)</th><th>Chip</th><th>Register / role</th><th>Evidence</th><th></th></tr></thead>
         <tbody>
           <tr><td class="p">00/01 · 10/11<br>20/21 · 30/31</td><td>4× FDC37C65C</td><td>MSR (base+0) / Data (base+1)</td><td>765 handshake at <code>0x457F</code> (<code>AND 0xC0;CP 0x80</code>) &amp; <code>0x46F1</code> (RQM/DIO)</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">40/50/60/70<br>C6</td><td>74HCT373 drive latches</td><td>drive select · motor · side</td><td>reset <code>OUT 0x40/0x60,0x0E</code>; DOR builder <code>0x3CD3</code></td><td><span class="chip c-unc">Uncertain</span></td></tr>
           <tr><td class="p">80–8F</td><td>µPD8237A DMA</td><td>ch0–3 addr/count (80–87), cmd/status 88, mode 8B, mask 8A/8E/8F, clear-ff 8C, mclr 8D</td><td>arm <code>dma_arm_channel</code> 0x4401 (bit7 → ch0/1 @0x441B or ch2/3 @0x4408); reset <code>OUT 0x88,0xA0</code></td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">90/94/98/9C</td><td><b>PPI U69</b> (µPD71055)</td><td>PA host bulk data (0x90) · PB status_in (0x94) · PC control (0x98 data / 0x9C ctrl-reg BSR): PC0/1 keypad, PC2 write-protect, PC3 bulk-dir (→U74), PC4/5 datarate A/B, PC6 drive enable, PC7 FDC strobe</td><td>register-select = Z80 A3/A2; CS off 0x90 decode (probed)</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">90/94</td><td>bulk channel (PPI PA/PB)</td><td>image data-in / ready (bit6)</td><td>download path <code>0x216A</code>, <code>0xAA55</code> frame sync; PA buffered via U74</td><td><span class="chip c-info">Reported</span></td></tr>
+          <tr><td class="p">94/98</td><td>keypad (PPI PB/PC)</td><td>4 keys via 2×2 matrix</td><td>columns on 0x98 (PC0/1), rows on 0x94; scan <code>0x4D0B</code>, decode <code>0x4590</code></td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">A0/A4/A8</td><td>8253 PIT</td><td>counter 0 / 1 / 2</td><td>ctrl words <code>16/50/90</code> select each counter</td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">AC</td><td>8253 PIT</td><td>control register</td><td>c0 mode-3 baud (÷13); c1/c2 mode-2 for RPM/hysteresis timing</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">B0</td><td>DRAM bank latch</td><td>image-buffer 32 KB bank select</td><td>DRAM sizing <code>OUT (0xB0),A</code> @0x03EE; per-track bank before every 0x8000 access</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">B1/C2/C3</td><td>FDC glue</td><td>data-rate / precomp select</td><td>precomp init <code>0x0980</code> (250/500 kbps)</td><td><span class="chip c-info">Reported</span></td></tr>
+          <tr><td class="p">C0</td><td><b>DRAM bank latch — high byte</b> (U66)</td><td>upper half of the <code>{0xC0,0xB0}</code> DRAM bank address; boot sets <code>0xFF</code> with the B0 write</td><td>continuity-probed: U66 data-fed via U58, outputs → <code>157</code> mux row inputs, strobed by U60 (<code>74138</code>) Y4 = <code>0xC0</code> decode</td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">D0/D4</td><td>Z80 SIO ch A</td><td>data (D0) / control+status (D4) — autoloader</td><td>Tx <code>BIT 2</code> (RR0), Rx <code>BIT 0</code> (RR0), data = control <code>&amp; ~4</code> (<code>RES/SET 2,C</code>, <code>0x4E42</code>); errors WR0-ptr→RR1 <code>AND 0x70</code>; <code>WR0=0x30</code> reset</td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">D8/DC</td><td>Z80 SIO ch B</td><td>data (D8) / control+status (DC) — host</td><td>same SIO cores, C=0xD8/0xDC</td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">E0</td><td>HD44780 LCD</td><td>instruction reg (RS=0), bit7=busy</td><td><code>lcd_init 0x4B99</code>, printer <code>0x4C59</code>, busy-wait <code>0x4C2A</code></td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">E8</td><td>HD44780 LCD</td><td>data reg (RS=1); presence self-test (write 0x55, read back)</td><td><code>lcd_byte_out 0x4C43</code> C=0xE8; probe <code>0x4BCC</code>, readback <code>0x4BDD</code> → headless on mismatch</td><td><span class="chip c-ok">Verified</span></td></tr>
-          <tr><td class="p">B0</td><td>DRAM bank latch</td><td>image-buffer 32 KB bank select</td><td>DRAM sizing <code>OUT (0xB0),A</code> @0x03EE; per-track bank before every 0x8000 access</td><td><span class="chip c-ok">Verified</span></td></tr>
-          <tr><td class="p">C0</td><td><b>DRAM bank latch — high byte</b> (U66)</td><td>upper half of the <code>{0xC0,0xB0}</code> DRAM bank address; boot sets <code>0xFF</code> with the B0 write</td><td>continuity-probed: U66 data-fed via U58, outputs → <code>157</code> mux row inputs, strobed by U60 (<code>74138</code>) Y4 = <code>0xC0</code> decode</td><td><span class="chip c-ok">Verified</span></td></tr>
-          <tr><td class="p">90/94/98/9C</td><td><b>PPI U69</b> (µPD71055)</td><td>PA host bulk data (0x90) · PB status_in (0x94) · PC control (0x98 data / 0x9C ctrl-reg BSR): PC0/1 keypad, PC2 write-protect, PC3 bulk-dir (→U74), PC4/5 datarate A/B, PC6 drive enable, PC7 FDC strobe</td><td>register-select = Z80 A3/A2; CS off 0x90 decode (probed)</td><td><span class="chip c-ok">Verified</span></td></tr>
-          <tr><td class="p">90/94</td><td>bulk channel (PPI PA/PB)</td><td>image data-in / ready (bit6)</td><td>download path <code>0x216A</code>, <code>0xAA55</code> frame sync; PA buffered via U74</td><td><span class="chip c-info">Reported</span></td></tr>
-          <tr><td class="p">B1/C2/C3</td><td>FDC glue</td><td>data-rate / precomp select</td><td>precomp init <code>0x0980</code> (250/500 kbps)</td><td><span class="chip c-info">Reported</span></td></tr>
-          <tr><td class="p">40/50/60/70<br>C6</td><td>74HCT373 drive latches</td><td>drive select · motor · side</td><td>reset <code>OUT 0x40/0x60,0x0E</code>; DOR builder <code>0x3CD3</code></td><td><span class="chip c-unc">Uncertain</span></td></tr>
-          <tr><td class="p">94/98</td><td>keypad (PPI PB/PC)</td><td>4 keys via 2×2 matrix</td><td>columns on 0x98 (PC0/1), rows on 0x94; scan <code>0x4D0B</code>, decode <code>0x4590</code></td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">F0</td><td>panel latch + I²C EEPROM</td><td>beeper · serial NVRAM (U86)</td><td>beeper on <code>0xF0</code>; EEPROM bit-bang <code>0x2ACB</code></td><td><span class="chip c-info">Reported</span></td></tr>
         </tbody>
       </table>
-    </div>
-    <div class="note corr">
-      <span class="lbl">Corrected during analysis</span>
-      The parallel deep-dives initially split three ways on the low ports. Direct disassembly settled
-      each: <b>0x00/10/20/30 are four FDCs</b> (textbook 765 MSR polling), not sensor latches;
-      <b>0xD0–0xDC are the two Z80 SIO channels</b> (they carry the autoloader + host protocols), not FDC data;
-      <b>0x80–0x8F is the 8237 DMA</b>, not an MMU. The added 8253 datasheet then re-homed
-      <b>0xA0–0xAC from &ldquo;PPI&rdquo; to the timer</b>, which also explains baud generation.
-      Finally, the subsystem drill-downs corrected the memory story: the DRAM image-buffer bank is
-      selected by <b>port 0xB0</b>, not 0x9C — verified in the boot DRAM-sizing loop
-      (<code>OUT (0xB0),A; LD (0x8000),A; CP (0x8000)</code>). 0x9C is the PPI U69 control register (Port C).
     </div>
   </section>
 
@@ -514,6 +507,86 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       <li><b>Format</b> — <code>0x1CEC</code>: builds a FAT12 boot sector from a ROM template at 0x3305 (OEM &ldquo;Jumbo&rdquo;, &ldquo;Non system disk&rdquo;) and stamps the <code>0x55AA</code> signature at 0x81FE.</li>
     </ul>
 
+    <h3>FDC command engine</h3>
+    <p>Command and result phases use polled PIO (<code>0x457F</code> write, <code>0x46F1</code> read);
+      bulk data moves by 8237 DMA. Commands are issued with an <code>LD SP,IX / POP</code> trick that
+      rapid-loads a RAM state block, arms DMA, and streams the command to the FDC data register.</p>
+
+    <h4>Per-FDC result &amp; state (RAM)</h4>
+    <div class="scroll"><table>
+      <thead><tr><th>Address</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td class="a">0x4A85 / 8C / 93 / 9A</td><td>7-byte result phase per FDC (ST0,ST1,ST2,C,H,R,N)</td></tr>
+        <tr><td class="a">0x4A61 / 6A / 73 / 7C</td><td>command buffer per FDC; byte0 = last opcode (seek/recal marker for the ISR)</td></tr>
+        <tr><td class="a">0x4AA1</td><td>per-FDC "result captured" bits (set by the ISR, spun on by the foreground)</td></tr>
+        <tr><td class="a">0x4AEB / 0x4B06</td><td>drive-pair blocks: +7 DOR/motor byte, +8/9 DMA start address, +10/11 DMA count</td></tr>
+        <tr><td class="a">0x52DD</td><td><code>format_desc</code>: +1/+5 sectors/track, +2 N (size code), +11 density/side/flags (full field map below)</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4>READ / WRITE 9-byte command build (0x3BFB)</h4>
+    <pre class="asm">3B04  LD (0x4AEA),0x26  <span class="c">; READ base -&gt; 0x66 after |0x40 MFM (WRITE stub uses 0x05-&gt;0x45)</span>
+...   assemble downward on the stack:
+      { CMD, HD/US, C, H, R, N, EOT, GPL, DTL }   <span class="c">; C/H/R/N from 0x4FF2 block-&gt;CHS</span>
+3C53  LD A,(0x4AEA); OR L   <span class="c">; command = base | 0x40 (MFM)</span>
+3C62  LD B,0x09
+3C7B  <b>CALL 0x457F</b>          <span class="c">; stream to FDC data port (C=0x00/10/20/30)</span></pre>
+    <p>DMA is armed in parallel; completion is interrupt-driven; the ISR at <code>0x45DB</code> pulls
+      each result phase.</p>
+
+    <h4>Bulk DMA — µPD8237A @ base 0x80 <span class="chip c-ok">Verified</span></h4>
+    <p>Register map confirmed against the µPD8237A datasheet — standard layout, <b>one channel per
+      FDC</b> (ch0=0x80, ch1=0x82, ch2=0x84, ch3=0x86):</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Port</th><th>Register</th><th>Port</th><th>Register</th></tr></thead>
+      <tbody>
+        <tr><td class="a">80/81</td><td>ch0 address / count</td><td class="a">88</td><td>command (W) · status (R)</td></tr>
+        <tr><td class="a">82/83</td><td>ch1 address / count</td><td class="a">89</td><td>software request</td></tr>
+        <tr><td class="a">84/85</td><td>ch2 address / count</td><td class="a">8A</td><td>mask one channel</td></tr>
+        <tr><td class="a">86/87</td><td>ch3 address / count</td><td class="a">8B</td><td>mode</td></tr>
+        <tr><td class="a">8C</td><td>clear byte-pointer flip-flop</td><td class="a">8D</td><td>master clear (W) · temp (R)</td></tr>
+        <tr><td class="a">8E</td><td>clear all masks</td><td class="a">8F</td><td>write all four mask bits</td></tr>
+      </tbody>
+    </table></div>
+    <p>Boot init <code>@0x0000</code>: master clear (<code>OUT 8D</code>), mask all (<code>OUT 8F,0x0F</code>),
+      command <code>0xA0</code> (controller enabled, fixed priority, DACK active-high, extended write).
+      Per-transfer arm is <b><code>dma_arm_channel</code> 0x4401</b> (via wrapper <code>0x43EC</code>,
+      which SP-swaps <code>drive_blk+8..11</code> into the DMA address/count): <code>BIT 7</code> of the
+      channel selector picks the <b>ch0/ch1</b> branch (<code>0x441B</code>: <code>A==0x01</code>→ch0
+      <code>C=0x80</code>, else ch1 <code>C=0x82</code>) or the <b>ch2/ch3</b> branch (<code>0x4408</code>:
+      <code>A==0x81</code>→ch2 <code>C=0x84</code>, else ch3 <code>C=0x86</code>). Each branch writes the
+      channel-index | transfer-type byte to the single-mask (<code>8A</code>) and <b>mode</b>
+      (<code>8B</code>) registers — mode <code>0x08|ch</code> = read-transfer (memory→FDC = disk
+      <b>write</b>), <code>0x04|ch</code> = write-transfer (FDC→memory = disk <b>read</b>) — writes the
+      two-byte address then count through the port in <code>C</code>, then rewrites <code>8A</code> to
+      its final enable state. The <code>8C</code> clear-flip-flop is pulsed <b>only in the ch0/ch1
+      branch</b>; the ch2/ch3 branch relies on the flip-flop staying balanced (boot master-clears it and
+      each arm does exactly four byte-writes). The channel address is 16-bit only (<code>A0–A15</code>);
+      the DRAM image bank above it is paged separately by port <code>0xB0</code>, and DMA only ever
+      targets image banks <b>0x00–0xFE</b> (bank <b>0xFF</b> is the program-RAM mirror — see §3). This is
+      why the per-bank checksum loop at <code>0x5193</code> (<code>INC A; CP 0xFF; RET Z</code>) walks
+      0x00–0xFE and stops at 0xFF.</p>
+
+    <h4>Seek family &amp; SENSE INTERRUPT (auto-issued)</h4>
+    <ul class="clean">
+      <li><b>RECALIBRATE 0x07</b> (<code>0x39A0</code>) and <b>SEEK 0x0F</b> (<code>0x42DD</code>, target cylinder in register C → NCN byte).</li>
+      <li>After a seek/recal interrupt, the ISR path <code>0x462D</code> recognizes the pending opcode and <b>automatically issues SENSE INTERRUPT STATUS (0x08)</b>, capturing ST0 + PCN.</li>
+      <li>Data rate / write-precomp go through the FDC register interface at <code>0xB1/0xC2/0xC3</code> (250 kbps DD, 500 kbps HD). The step-timing/SPECIFY equivalent is the parameter block at <code>0x3CD3</code> <span class="chip c-unc">Uncertain</span> — its opcode byte is runtime-computed, not a literal 0x03.</li>
+    </ul>
+
+    <h4>Error decode — priority encoder 0x4893 (over ST0/ST1/ST2)</h4>
+    <div class="scroll"><table>
+      <thead><tr><th>Status bit</th><th>765 meaning</th><th>Message</th></tr></thead>
+      <tbody>
+        <tr><td class="a">ST1.5 / ST1.2 / ST1.0 / ST2.5</td><td>CRC · no-data · missing AM · data CRC</td><td>"unreadable"</td></tr>
+        <tr><td class="a">ST1.4</td><td>overrun</td><td>"Lost data"</td></tr>
+        <tr><td class="a">ST1.1</td><td>not writable (write-protect)</td><td>"FDD write fault"</td></tr>
+        <tr><td class="a">ST2.4 / ST2.1</td><td>wrong / bad cylinder</td><td>"FDD seek error"</td></tr>
+        <tr><td class="a">ST0.4</td><td>equipment check (seek/recal fail)</td><td>"FDD seek error"</td></tr>
+        <tr><td class="a">ST3 (SENSE DRIVE 0x04)</td><td>bit6 WP · bit5 ready · bit4 track0</td><td>"FDD not ready"</td></tr>
+      </tbody>
+    </table></div>
+
     <h3>Built-in disk formats</h3>
     <div class="scroll">
       <table>
@@ -531,12 +604,195 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       </table>
     </div>
     <p class="muted">All 512 bytes/sector. Plus 16 user &ldquo;Special formats&rdquo; and named
-      models 528-400 / 526-400 / 325-400. The 2.88 MB (ED) capability of the FDC37C65C part is
+      models 528-400 / 526-400 / 325-400 (see §9 HRD). The 2.88 MB (ED) capability of the FDC37C65C part is
       present in silicon but no ED format ships in this table.</p>
+    <div class="note">
+      <span class="lbl">fmt_param_tbl (0x326E) is dead code <span class="chip c-ok">Verified</span></span>
+      These eight geometries are also declared as 19-byte DOS BPB records at <code>fmt_param_tbl</code>
+      (0x326E), but that table is <b>never read by any code in this image</b> — no base-address load of
+      0x326E exists anywhere in the 32&nbsp;KB ROM (an exhaustive pointer search returns only two
+      false-positive hits inside other instructions), and the download/code-load loader
+      (<code>code_loader</code> 0x21A9 → <code>dl_code</code> 0x21CE) never touches it either. The geometry
+      the engine actually uses lives in <code>format_desc</code> (below), assembled from the config-menu
+      selection via <code>media_cfg_index</code> (0x520A); the FAT12 boot sector is built from
+      <code>fat12_template</code> (0x3305), not from this table. Most likely a leftover from an earlier build.
+    </div>
+
+    <h3>The active-format / copy descriptor — format_desc (0x52DD)</h3>
+    <p><code>format_desc</code> is the 18-byte working record (<code>0x52DD–0x52EE</code>) that the FDC
+      engine and the duplication engine both read from. It is <b>two overlaid halves</b>: a
+      <i>geometry</i> descriptor (bytes 0–11) and a block of <i>copy-engine scratch</i> (bytes 12–17).
+      It is not a fixed on-disk structure — it is assembled at run time from the config-menu selection.</p>
+    <p>The geometry half is rebuilt by <b><code>init_format_geom</code> (0x5101)</b>: it
+      <code>LDIR</code>-copies <b>5 nominal parameters</b> from the selected drive block
+      (<code>drive_blk_a+0x11</code>) into <code>+0..+4</code>, then <b>computes</b> <code>+5..+10</code>
+      (dividing the 32 KB image-bank size by the per-sector product to fill the bank). The record
+      deliberately holds both the <i>nominal</i> values (<code>+1</code>, <code>+3/4</code>) and their
+      <i>computed</i> counterparts (<code>+5</code>, <code>+7/8</code>) — that redundancy is by design.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Off</th><th>Sz</th><th>Field</th><th>Source</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td class="a">+0</td><td>1</td><td>nominal cylinder/track count</td><td>copied</td><td>0x085B, 0x0DC4</td></tr>
+        <tr><td class="a">+1</td><td>1</td><td>nominal sectors-per-track</td><td>copied</td><td>0x5089, 0x50B2, 0x50D3</td></tr>
+        <tr><td class="a">+2</td><td>1</td><td>sector-size code <b>N</b></td><td>copied</td><td>0x50F2 + init math</td></tr>
+        <tr><td class="a">+3</td><td>2</td><td>per-track byte size (added to image ptr per track)</td><td>copied</td><td>0x1C5E, 0x2BAF</td></tr>
+        <tr><td class="a">+5</td><td>1</td><td><b>computed</b> sectors-per-track</td><td>init 0x512A</td><td>0x5057, 0x50C1</td></tr>
+        <tr><td class="a">+6</td><td>1</td><td><b>computed</b> N × 4 (sector-size / gap value)</td><td>init 0x514E</td><td>0x5066</td></tr>
+        <tr><td class="a">+7</td><td>2</td><td><b>computed</b> track byte-count (= total, mirrored to +9)</td><td>init 0x5141</td><td>0x504E</td></tr>
+        <tr><td class="a">+9</td><td>2</td><td><b>computed</b> total length (tracks × N)</td><td>init 0x513B</td><td>0x506D</td></tr>
+        <tr><td class="a">+11</td><td>1</td><td><b>format-flags / model-ID byte</b> (bit map below)</td><td>menu</td><td>see below</td></tr>
+        <tr><td class="a">+12</td><td>1</td><td>source image-bank byte (drive A); also <i>start-bank − 1</i></td><td>copy engine</td><td>0x3F75, 0x51D9</td></tr>
+        <tr><td class="a">+13</td><td>2</td><td>source track/buffer pointer</td><td>copy engine</td><td>0x3F72, 0x40D5</td></tr>
+        <tr><td class="a">+15</td><td>1</td><td>destination image-bank byte (drive B)</td><td>copy engine</td><td>0x3F67, 0x40CC</td></tr>
+        <tr><td class="a">+16</td><td>2</td><td>destination track/buffer pointer</td><td>copy engine</td><td>0x3F64, 0x40C9</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Byte +11 — format flags / model-ID</b> (<code>0x52E8</code>). Set from the menu selection; the
+      copy engine also reads/writes it as the reported model-ID byte (<code>0x1943</code>,
+      <code>0x199A</code>, <code>0x1FE2</code>):</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Bit</th><th>Meaning</th><th>Consumed by</th></tr></thead>
+      <tbody>
+        <tr><td class="a">7</td><td>HD (1) / DD (0) density</td><td>RES/SET 7 at 0x1831/0x1849; → media-cfg index bit 0 (0x521F)</td></tr>
+        <tr><td class="a">6</td><td>media-config index bit 1</td><td><code>media_cfg_index</code> 0x5217</td></tr>
+        <tr><td class="a">5</td><td>FDC unit-select option → sel bit 6</td><td><code>fdc_build_unit_sel</code> 0x51FA</td></tr>
+        <tr><td class="a">4</td><td>double-sided (2 heads)</td><td>seek 2nd head 0x0739; sel bit 5 0x51F2; datarate latch 0x5153</td></tr>
+        <tr><td class="a">3</td><td>media-config index bit 2</td><td><code>media_cfg_index</code> 0x520F</td></tr>
+        <tr><td class="a">2</td><td>FDC unit-select option → sel bit 7</td><td><code>fdc_build_unit_sel</code> 0x5202</td></tr>
+      </tbody>
+    </table></div>
+    <p>The <b>copy scratch</b> (<code>+12..+17</code>) is populated per operation by the duplication
+      engine (<code>0x3F64</code>, <code>0x40C9</code>) and then latched into
+      <code>drive_blk_a</code>/<code>drive_blk_b</code> at <code>+7</code> (bank) and <code>+0xC</code>
+      (pointer) — it carries the source- and destination-drive bank + image-buffer pointers for one
+      track-copy pass.</p>
+    <div class="note corr">
+      <b>Not <code>format_desc</code>:</b> <code>geom_sector_calc</code> (<code>0x2BB7</code>, called only
+      from <code>0x1D4D</code>) reads <code>IX+13/+15</code>, but there <code>IX</code> points at the
+      <b>installed boot-sector BPB record</b> (copied in at <code>0x1D38</code>), <i>not</i> at
+      <code>format_desc</code>. Those two offsets are BPB sectors-per-track / interleave, unrelated to
+      the copy-scratch bytes at <code>format_desc+13/+15</code>.
+    </div>
+
+    <h3>The formatted boot sector — fat12_template (0x3305)</h3>
+    <p>Formatting (as opposed to copying a master) builds a real, <b>PC-bootable FAT12 boot sector</b>
+      from a 73-byte ROM template. The template supplies the fixed shell; the <b>BPB geometry fields</b>
+      (bytes/sector, sector counts, media byte, FAT layout, sectors/track, heads) are patched in from the
+      selected format's 19-byte BPB record, copied to <code>image_buf+0xB</code> at <code>0x1D36</code>.
+      The <code>0x55AA</code> signature is stamped separately at <code>0x81FE</code>.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Field</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td class="a">Jump</td><td><code>EB 4E 90</code> (<code>JMP 0x4E; NOP</code>)</td></tr>
+        <tr><td class="a">OEM name</td><td><code>"Jumbo   "</code></td></tr>
+        <tr><td class="a">BPB (offset 0x0B…)</td><td><i>filled per-format from the BPB record</i></td></tr>
+        <tr><td class="a">FS type</td><td><code>"FAT12   "</code></td></tr>
+        <tr><td class="a">Boot code</td><td>prints <b>"Non system disk"</b>, then reboots (below)</td></tr>
+        <tr><td class="a">Signature @ 0x1FE</td><td><code>55 AA</code> (stamped at 0x81FE)</td></tr>
+      </tbody>
+    </table></div>
+    <p>The boot code is the textbook "non-system disk" stub — <code>E8 10 00</code> calls past the inline
+      message string, then:</p>
+    <pre class="asm">5B         POP BX          <span class="c">; BX -&gt; "Non system disk" message</span>
+B4 0E      MOV AH,0x0E     <span class="c">; INT 10h teletype</span>
+2E 8A 07   MOV AL,CS:[BX]  <span class="c">; next char</span>
+3C 00      CMP AL,0        <span class="c">; end of string?</span>
+74 05      JZ  +5
+CD 10      INT 10h         <span class="c">; print it</span>
+43         INC BX
+EB F2      JMP loop
+30 E4      XOR AH,AH       <span class="c">; INT 16h read-key</span>
+CD 16      INT 16h         <span class="c">; wait for a keypress</span>
+EA 00 00 FF FF  JMP FFFF:0000  <span class="c">; reboot</span></pre>
+    <p>So a blank formatted on this machine actually <b>boots on a PC and prints "Non system disk"</b> —
+      the OEM string in the produced media is <code>Jumbo</code>.</p>
+  </section>
+
+  <section id="dup">
+    <div class="snum">07</div>
+    <h2>Duplication engine</h2>
+    <p>The copy orchestration is a <b>cooperative phase machine</b>, not a bitfield sequencer. Two words
+      of state drive it: an operation word at <code>0x3134</code> and a current-phase-handler pointer at
+      <code>0x3131</code> (loaded from a media-indexed jump table at <code>0x1444</code>).</p>
+
+    <h4>0x3134 — operation word</h4>
+    <div class="scroll"><table>
+      <thead><tr><th>Bits</th><th>Field</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="a">7</td><td>ADV / STOP</td><td>phase-advance flag; also distinguishes user-"stopped" from "unreadable"</td></tr>
+        <tr><td class="a">6</td><td>ERR_A</td><td>write/verify error on drive-group A</td></tr>
+        <tr><td class="a">5</td><td>ERR_B</td><td>write/verify error on drive-group B</td></tr>
+        <tr><td class="a">4</td><td>SIDE/RETRY</td><td>side or retry qualifier</td></tr>
+        <tr><td class="a">3–0</td><td>PHASE</td><td>0 idle · 1 FWV · 2 WV · 3 Format · 4 Format+V · 6 Write · 7 RD+meta · 8 Verify · 9 CRC · A wait-for-data</td></tr>
+        <tr><td class="a">7–5</td><td>ERR?</td><td>aggregate "any error" test (<code>AND 0xE0</code>) → gates image-valid flag 0x52C8</td></tr>
+      </tbody>
+    </table></div>
+    <p class="muted">The RD+ family (Read-source then FWV/WV/FW/W) is a single meta-phase 7 plus a
+      sub-mode selector <code>0x314F</code> = 1/2/5/6. Launcher <code>0x25E6</code> sets phase 7 and
+      clears the image-present flag to force a fresh read.</p>
+
+    <h4>Engine phases</h4>
+    <ul class="clean">
+      <li><b>Read source</b> (<code>0x11B4</code>) — reads the master <em>once</em> into the DRAM image (bank paged via <code>OUT (0xB0)</code>), autoloader-aware. 32-bit position counter at <code>0x3269/0x326B</code>. Image integrity check at <code>0x51A9</code> sums 0x8000–0xFFFF and stores the complement at 0xFFFF.</li>
+      <li><b>Format</b> (<code>0x1CE2</code>) — builds a FAT12 boot sector from ROM template <code>0x3305</code> ("Jumbo" OEM, "Non system disk"), stamps <code>0x55AA</code> at 0x81FE, then formats all targets (see §6).</li>
+      <li><b>Write</b> (<code>0x08DE</code>) — parallel DMA: each target FDC has its own state block (<code>0x4AEB</code>/<code>0x4B06</code>) and 8237 channel; all stream the same track buffer at once.</li>
+      <li><b>Verify / compare</b> (<code>0x0E46</code>) — DMAs the written track back into a fixed low-RAM scratch at <code>0x5800</code> and <code>CPI</code>-compares against the DRAM image; mismatch sets ERR_A/ERR_B.</li>
+    </ul>
+
+    <h4>Verify inner loop (0x0E46)</h4>
+    <pre class="asm">0E46  3A 56 31   LD A,(0x3156)     <span class="c">; per-track image bank #</span>
+0E49  <b>D3 B0      OUT (0xB0),A</b>      <span class="c">; page that DRAM bank into 0x8000</span>
+0E4B  2A 58 31   LD HL,(0x3158)    <span class="c">; offset within bank</span>
+0E4F  F6 80      OR 0x80 ; H|=0x80 <span class="c">; -&gt; 0x8000+offset</span>
+0E53  11 00 58   LD DE,0x5800      <span class="c">; DMA read-back scratch</span>
+0E56  1A 13      LD A,(DE);INC DE
+0E58  ED A1      CPI               <span class="c">; compare image byte vs read-back</span>
+0E5A  20 05      JR NZ,0x0E61      <span class="c">; mismatch -&gt; "Compare error", SET 6/5</span>
+0E5C  EA 56 0E   JP PE,0x0E56      <span class="c">; loop while BC != 0</span></pre>
+
+    <h4>Batch &amp; autoloader</h4>
+    <p>Loop tail <code>0x1090</code> decrements the run counter <code>0x313D</code>; on completion the
+      accept/reject sequencer <code>0x10D2</code> diverts a good copy to the accept bin
+      (<code>"ACCEPT"</code>) or a failed one to reject. Because each target owns its channel and
+      state block, a target that fails verify only sets its group's error bit and is rejected — the
+      others continue. <span class="chip c-unc">Uncertain</span> no separate per-target "alive" mask
+      beyond the two group bits was found (fits a 2-media-group design).</p>
+
+    <h3>Serialization — disk auto-numbering</h3>
+    <p>When enabled (<code>cfg_byte</code>/<code>hrd_desc_tbl</code> bit 1), the machine stamps a
+      <b>unique, auto-incrementing serial number</b> into every copy at a user-configured location — the
+      classic commercial-duplicator licensing/tracking feature. The number is a <b>32-bit</b> value
+      written as <b>4 bytes</b> into one sector.</p>
+    <p>The config editor (<code>config_serialization</code> 0x2369 enables it; the field editor at
+      0x1B6A–0x1C98 is reached from run setup) prompts for six fields, each validated against the current
+      <code>format_desc</code> geometry:</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Screen</th><th>Stores to</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="a">"Initial serial Nr."</td><td><code>serial_num_lo</code>/<code>serial_num_hi</code> (0x3168/0x316A)</td><td>starting number (8 decimal digits → 32-bit)</td></tr>
+        <tr><td class="a">"Increment"</td><td><code>serial_incr</code> (0x316C)</td><td>amount added to the number per copy</td></tr>
+        <tr><td class="a">"Cylinder"</td><td><code>serial_cyl</code> (0x316D)</td><td>target cylinder</td></tr>
+        <tr><td class="a">"Head"</td><td><code>serial_head</code> (0x316E)</td><td>target head</td></tr>
+        <tr><td class="a">"Sector"</td><td><code>serial_sector</code> (0x316F)</td><td>target sector</td></tr>
+        <tr><td class="a">"Offset"</td><td><code>serial_offset</code> (0x3170)</td><td>byte offset within the sector</td></tr>
+      </tbody>
+    </table></div>
+    <p>After the last field, <code>track_buf_ptr</code> (0x2BA5) turns cyl/head/sector into a DRAM image
+      <b>bank</b> (<code>serial_bank</code> 0x3172) + <b>write address</b> (<code>serial_addr</code>
+      0x3173), and <code>track_ptr_scale</code> yields a <b>scaled byte pointer</b>
+      (<code>serial_ptr</code> 0x3175).</p>
+    <p><b>Stamp</b> (0x08A4, on write-type ops 2/4/6 only): <code>OUT (0xB0)</code> selects
+      <code>serial_bank</code>, then a 4-byte <code>LDIR</code> copies <code>serial_num_lo/_hi</code> into
+      the image at <code>serial_addr</code>, and <b><code>set_bank_checksum</code> (0x519C) recomputes
+      that bank's checksum</b> so the later verify pass still matches the patched image. During verify
+      (0x0E11, 0x0EE2) the same 4 bytes are mirrored into the read-back scratch on the matching
+      cylinder/head so the serial region isn't falsely flagged. After each copy the number advances
+      (0x105F: <code>serial_num += serial_incr</code>, carry propagated across the 32-bit value). The
+      <code>serial_*</code> labels for the block 0x3168–0x3175 are fixed by the config editor's on-screen prompts.</p>
   </section>
 
   <section id="serial">
-    <div class="snum">07</div>
+    <div class="snum">08</div>
     <h2>Serial &amp; protocols</h2>
     <p>Two independent Z80 SIO channels at 9600 baud (×16 clock from the 8253); the autoloader channel is 8N1 and the host channel switches parity per operation (boots 8O1). Fully polled (no interrupt-driven ring
       buffers). Channel A talks to the autoloader; channel B is the host command link. A third,
@@ -548,24 +804,40 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       link that <b>commands its motors and reads its sensors</b> — insert, accept, reject, calibrate,
       and a status byte encoding the mechanical state (hopper empty, disk-in-drive, jams, bin full,
       eject timeout). It sends single ASCII commands and expects <code>X</code> (ok) / <code>E</code>
-      (error) / <code>?</code> (unknown); dispatcher <code>0x13D9</code> flushes the receiver, sends the
-      byte, checks for <code>'X'</code>.</p>
+      (error) / <code>?</code> (unknown).</p>
+    <pre class="asm">13D9  IN A,(0xD0) x3      <span class="c">; flush stale RX</span>
+13DF  CALL 0x4E91         <span class="c">; reset cmd-reg (0x30)</span>
+13E2  CALL 0x4E99         <span class="c">; TX command byte in B</span>
+13E5  CALL 0x4EA1         <span class="c">; RX reply -&gt; B</span>
+13ED  LD A,0x58 ; CP B    <span class="c">; reply == 'X' ?  (A=0 ok / 1 timeout / 2 wrong)</span></pre>
+    <ul class="clean">
+      <li><b>Only S, C, I, A, R are ever transmitted.</b> <span class="chip c-ok">Verified</span> by exhaustive scan — this ROM never issues the autoloader <b>O</b> (version) or <b>V</b> (cycle-count) commands. The cycle count is an <em>internal</em> 32-bit counter at <code>0x3269/0x326B</code>, bumped once per successful INSERT.</li>
+      <li><b>S returns two ASCII hex characters</b> (e.g. <code>"0B"</code>); <code>0x13FB</code> decodes them to the single status byte matched below.</li>
+      <li>Connection probe (<code>0x0220</code>) pings with <b>R</b>: a pure RX timeout (0x314C=0) → "NOT CONNECTED"; a reply with framing/parity bits → "COMMUNICATION ERROR".</li>
+    </ul>
     <div class="scroll">
       <table>
         <thead><tr><th>Cmd</th><th>Meaning</th><th>Cmd</th><th>Meaning</th></tr></thead>
         <tbody>
           <tr><td class="p">S</td><td>status (2-byte reply)</td><td class="p">R</td><td>reject</td></tr>
-          <tr><td class="p">C</td><td>calibrate / clear</td><td class="p">O</td><td>print version</td></tr>
-          <tr><td class="p">I</td><td>insert</td><td class="p">V</td><td>cycle count (32-bit)</td></tr>
+          <tr><td class="p">C</td><td>calibrate / clear</td><td class="p">O</td><td>print version <i>(never sent)</i></td></tr>
+          <tr><td class="p">I</td><td>insert</td><td class="p">V</td><td>cycle count <i>(never sent)</i></td></tr>
           <tr><td class="p">A</td><td>accept</td><td class="p">—</td><td></td></tr>
         </tbody>
       </table>
     </div>
-    <p>The status byte is decoded at <code>0x1286</code>: <code>BIT 1</code> gates
-      &ldquo;Hopper not seated&rdquo;; the high nibble selects the message — <span class="mono">0x0→</span>ok,
-      <span class="mono">0x2→</span>hopper empty, <span class="mono">0x8→</span>calibration error,
-      <span class="mono">0x9→</span>eject timeout, <span class="mono">0xA→</span>accept hopper full,
-      <span class="mono">0xC→</span>reject error, <span class="mono">0xD→</span>bad bin full.</p>
+    <h4>Status decode (0x1286) vs. probed ground truth</h4>
+    <div class="scroll"><table>
+      <thead><tr><th>Status</th><th>Ground-truth meaning</th><th>Firmware message</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="a">0x07 / 0x0B</td><td>ok / disk-in-drive</td><td>"AL status ok"</td><td><span class="chip c-ok">match</span></td></tr>
+        <tr><td class="a">0x27</td><td>hopper empty</td><td>"Hopper empty"</td><td><span class="chip c-ok">match</span></td></tr>
+        <tr><td class="a">0x47 / 0x4B</td><td>no-disk / disk fwd</td><td>generic "AL error Status .."</td><td><span class="chip c-unc">no dedicated msg</span></td></tr>
+        <tr><td class="a">0x87 / 0x8B</td><td>reject-bin jam</td><td>"Calibration error"</td><td><span class="chip c-unc">label differs</span></td></tr>
+        <tr><td class="a">0x97 / 0x9B</td><td>eject jam</td><td>"Eject timeout"</td><td><span class="chip c-ok">≈ same fault</span></td></tr>
+        <tr><td class="a">bit1 = 0</td><td>hopper seat open</td><td>"Hopper not seated"</td><td><span class="chip c-ok">match</span></td></tr>
+      </tbody>
+    </table></div>
 
     <h3>Host remote control — the machine is the server</h3>
     <p>The two serial links have <b>opposite roles</b>: on the autoloader link the machine is the
@@ -576,27 +848,46 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       replies <code>X</code> (0x58 ack) / <code>E</code> (0x45 bad-packet NAK) plus a binary
       <b>status byte</b> (<code>0x00</code> ok; <code>0x90/0xA0/0xB0</code> = command error / transfer
       failed / not-proper-image). A host PC can drive the whole duplication cycle remotely.</p>
-    <p><b>Control opcodes</b> (0x09–0x0F):</p>
+    <ul class="clean">
+      <li><b>Command packet</b> — <code>host_read_packet</code> 0x1DF3, 4 bytes:
+        <code>{lead byte → E, opcode → D, 16-bit LE parameter → HL}</code> — the lead byte is <b>read off the wire but never used or validated</b> (a sync/reserved byte); a valid packet sets
+        <code>op_word = opcode</code> and <code>run_count = parameter</code>.</li>
+      <li><b>Replies</b> — <code>'X'</code> (0x58) = ACK/OK, <code>'E'</code> (0x45) = bad-packet NAK; a
+        pure RX timeout just re-polls (heartbeat). Handlers additionally return a binary <b>status
+        byte</b>: 0x00 ok; 0x90 / 0xA0 / 0xB0 = command error / transfer failed / not-proper-image.</li>
+    </ul>
+    <p><b>Opcode table</b> — dispatch is a linear <code>CP &lt;op&gt;; JP/JR NZ</code> chain from 0x1E37.
+      <b>Control opcodes</b> (explicit handlers):</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Op</th><th>Handler</th><th>Addr</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td class="a">0x09</td><td>host_op_start</td><td class="a">0x205C</td><td>Reset operation word (<code>op_word=0</code>), ACK</td></tr>
+        <tr><td class="a">0x0A</td><td>host_op_image_dl</td><td class="a">0x1E37</td><td>Image download (0xAA55-framed records into banked DRAM)</td></tr>
+        <tr><td class="a">0x0B</td><td>host_op_enter_run</td><td class="a">0x1F9F</td><td>Enter RUN mode — <code>host_mode=0</code>, install I/O vectors 0x52C9/CB/CD, <code>JP 0x0161</code></td></tr>
+        <tr><td class="a">0x0C</td><td>host_op_ping</td><td class="a">0x204B</td><td>Ping / no-op ACK (+ status 0x00)</td></tr>
+        <tr><td class="a">0x0D</td><td>host_op_disk_write</td><td class="a">0x1FC6</td><td>Disk-write / format setup: streams <code>cfg_flags</code>+unit, a <b>write-protect</b> byte (→ <code>0x9C</code> PC2 + <code>wprot_mode</code>, <code>0x200B</code>), <code>err_recovery</code>, then a <b>24-byte per-head zone table</b> → <code>hrd_hd0</code> — a host can <b>define a variable-rate Special format remotely</b>. Echoes each byte; clears <code>image_present</code></td></tr>
+        <tr><td class="a">0x0E</td><td>host_op_diag_out</td><td class="a">0x2082</td><td>Host↔autoloader serial <b>bridge</b> (relays until <code>'W'</code>=0x57), diag block via OTIR</td></tr>
+        <tr><td class="a">0x0F</td><td>host_op_load_exec</td><td class="a">0x206F</td><td>Load &amp; execute downloaded code (<code>code_loader</code> → 0x7800, image 0x8000, <code>JP (HL)</code>)</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Duplication-run opcodes</b> — anything not matched above falls through to
+      <code>host_op_begin_run</code> (0x20E3), where <b>the opcode itself becomes <code>run_status</code></b>
+      (the operation mode); there is <b>no unknown-opcode reject path</b>:</p>
     <div class="scroll"><table>
       <thead><tr><th>Op</th><th>Action</th></tr></thead>
       <tbody>
-        <tr><td class="a">0x09</td><td>reset operation word, ACK</td></tr>
-        <tr><td class="a">0x0A</td><td>image download — <code>0xAA55</code>-framed records streamed into banked DRAM</td></tr>
-        <tr><td class="a">0x0B</td><td>enter RUN mode — install I/O vectors (0x52C9/CB/CD), <code>JP 0x0161</code></td></tr>
-        <tr><td class="a">0x0C</td><td>ping / no-op ACK</td></tr>
-        <tr><td class="a">0x0D</td><td>disk-write / format setup — streams write-protect (→0x9C), err_recovery and a 24-byte per-head zone table (host defines a variable-rate format)</td></tr>
-        <tr><td class="a">0x0E</td><td>host↔autoloader serial <b>bridge</b> + diagnostic block</td></tr>
-        <tr><td class="a">0x0F</td><td>load &amp; execute downloaded code (→ 0x7800)</td></tr>
+        <tr><td class="a">0x07</td><td><b>BP</b> duplication run (prints "BP", <code>run_status=1</code>, <code>OUT 0x9C,0x04</code>, <code>require_motor_ready</code>)</td></tr>
+        <tr><td class="a">0x01–0x06, 0x08</td><td><b>FDD</b> duplication: <code>run_status = opcode</code> → <code>dup_engine_loop</code> (mode = op-word phase: 1 FWV · 2 WV · 3 Format · 4 Format+V · 6 Write · 8 Verify)</td></tr>
       </tbody>
     </table></div>
-    <p><b>Duplication opcodes</b> — every other value falls through to a run, the opcode itself being
-      the mode: <code>0x07</code> = <b>BP</b> duplication; <code>0x01</code>–<code>0x06</code>/<code>0x08</code>
-      = <b>FDD</b> duplication (FWV / WV / Format / Format+V / Write / Verify). No unknown-opcode reject
-      path. Full byte-level table in the internals companion.</p>
+    <p>The <b>I/O-vector mechanism</b> (<code>0x4D89</code>/<code>0x4C43</code>/<code>0x2766</code> dispatch
+      through <code>0x52C9/CB/CD</code>) retargets identical byte-I/O call sites between local keypad,
+      autoloader, and host — the 0x0B opcode rewrites all three vectors and jumps to the shared run loop,
+      which is how the same duplication engine serves local and remote runs.</p>
   </section>
 
   <section id="ui">
-    <div class="snum">08</div>
+    <div class="snum">09</div>
     <h2>UI &amp; features</h2>
     <p>Four front-panel keys — <b>Next</b> (<code>0x08</code>), <b>Previous</b> (<code>0x04</code>),
       <b>Exit</b> (<code>0x02</code>), <b>Enter</b> (<code>0x01</code>) — plus an audio beeper. Menus run
@@ -657,8 +948,8 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
 <b>SPECIAL FORMATS</b>  1–16   ·   <b>REMOTE CONTROL</b>  (host link)</pre>
 
     <ul class="clean">
-      <li><b>Serialization</b> stamps an auto-incrementing serial number onto each copy at a configurable cylinder/head/sector/offset, optionally re-verified bit-for-bit.</li>
-      <li><b>HRD diagnostics</b> measure drive mechanics using the 8253 counters as interval timers — the added timer datasheet is what made this readable.</li>
+      <li><b>Serialization</b> stamps an auto-incrementing serial number onto each copy at a configurable cylinder/head/sector/offset, optionally re-verified bit-for-bit (see §7).</li>
+      <li><b>HRD diagnostics</b> measure drive mechanics using the 8253 counters as interval timers (detailed below).</li>
       <li><b>Simultaneous mode</b> writes all fitted drives in one pass via the parallel DMA path; spindle-speed and density options match the media.</li>
     </ul>
 
@@ -675,29 +966,154 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
       </tbody>
     </table></div>
 
+    <h3>HRD diagnostics &amp; the 8253 timer</h3>
+    <p>The 8253's counter 0 (mode 3, ÷13) produces <b>153 846 Hz</b> — both the Z80 SIO baud clock
+      <em>and</em> the cascade clock into counters 1 &amp; 2, used as interval timers (c1 = head 0, c2 = head 1).</p>
+    <h4>Spindle RPM — genuine interval timing (0x37DB → 0x2E72)</h4>
+    <pre class="asm">38BE  LD A,0x74 ; OUT (0xAC),A   <span class="c">; counter1, 16-bit, mode 2</span>
+38C4  LD A,0xFF ; OUT (0xA4),A x2 <span class="c">; preload 0xFFFF</span>
+...   wait one index-to-index revolution (sensor bit on 0xF0)...
+3908  LD A,0x84 ; OUT (0xAC),A    <span class="c">; latch counter</span>
+390C  IN A,(0xA8) x2              <span class="c">; read residual -&gt; HL</span>
+3917  SBC HL,DE                   <span class="c">; elapsed ticks = 0xFFFF - residual</span>
+<span class="c">; then:  RPM = 0x008CD9B1 / ticks  =  9,230,769 / ticks</span></pre>
+    <p><code>9 230 769 = 60 × (2 MHz ÷ 13)</code> — an exact integer match that pins the counter clock
+      and the <b>2 MHz</b> 8253 input, which the board derives as <b>32.000 MHz ÷ 16</b>. Checks: 300 RPM
+      → 30 769 ticks; 360 RPM → 25 641 ticks — comfortably inside 16 bits, which is exactly why the ÷13
+      clock is cascaded rather than the raw 2 MHz.</p>
+
+    <h4>The alignment-diagnostic suite (no ADC)</h4>
+    <p>The <b>HRD diagnostics</b> menu (<code>hrd_menu</code> 0x1540) offers five measurement types,
+      all read from a factory alignment diskette and computed <b>in software from the FDC read
+      stream — there is no ADC</b>. The selected type (<code>hrd_test_idx</code>, 0–4) maps 1:1 onto a
+      record of the ROM table <code>hrd_test_tbl</code> (0x3186):</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>idx</th><th>test (ROM label)</th><th>scale K</th><th>unit</th></tr></thead>
+        <tbody>
+          <tr><td class="a">0</td><td>Radial alignment (3 tracks)</td><td class="a">422</td><td>µm</td></tr>
+          <tr><td class="a">1</td><td>Eccentricity</td><td class="a">422</td><td>µm</td></tr>
+          <tr><td class="a">2</td><td>Head azimuth</td><td class="a">696</td><td>arc-min (')</td></tr>
+          <tr><td class="a">3</td><td>Positioner &ldquo;hystheresis&rdquo; <em>(sic in ROM)</em></td><td class="a">422</td><td>µm</td></tr>
+          <tr><td class="a">4</td><td>Spindle motor speed</td><td class="a">1</td><td>RPM (raw)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Each 5-byte record is <code>{ scale K : word, handler address : word, result mask : byte }</code>;
+      the handler is reached by a computed jump (<code>PUSH DE; RET</code>, 0x2CED) and points to the
+      per-test LCD formatter — fixing the displayed units: radial/eccentricity/positioner in <b>µm</b>,
+      azimuth in <b>arc-minutes</b> (<code>'</code>), spindle in <b>rpm</b>.</p>
+    <p><b>Measurement pipeline</b> (<code>hrd_radial_measure</code> 0x2D5B): seek the alignment track
+      and capture <b>four read windows</b> into the image buffer — head 0 reads A/B at
+      <code>image_buf+0x0000</code>/<code>+0x2000</code>, head 1 at <code>+0x4000</code>/<code>+0x6000</code>.
+      <code>hrd_find_burst</code> (0x3008) scans each window for the sync burst (three bytes summing to
+      0xFF, ×7) and returns its byte offset. The per-head result is the <b>difference of the two burst
+      offsets</b> (<code>SBC HL,DE</code>), cancelling common-mode timing and leaving the radial
+      displacement. This is repeated <b>10×</b> and passed through <code>hrd_median_filter</code>
+      (0x3084, bubble-sort + average the middle samples) to yield <code>hrd_hd0</code>/<code>hrd_hd1</code>.</p>
+    <p><b>The display scale is a ROM constant</b> <span class="chip c-ok">Resolved</span> — <code>hrd_show_scaled</code>
+      (0x2CEE) computes <b><code>displayed = raw × K / 10000</code></b> (<code>mul16</code>, then
+      <code>÷ 0x2710</code>), where K is <code>hrd_test_tbl[test].scale</code>. That table is <b>never
+      written by any code</b> — static, ROM-initialised — so the geometric→display scale is a firmware
+      constant, <em>not</em> a value embedded in the captured disk. The capture reuses the <b>normal FDC
+      read path</b>; the <code>0x9C</code> <code>0x0E→0x0F</code> strobe seen during it is just
+      <code>fdc_poll_complete</code>'s result-read pulse (PC7 of the PPI Port C — see §3).</p>
+
+    <h4>Supported drive models &amp; which tracks are measured</h4>
+    <p>HRD alignment is only supported on <b>three drive models</b>, and the model isn't chosen from a
+      menu — it is <b>auto-detected</b> from the drive's model-ID sense byte <code>format_desc[0xB]</code>
+      (masked <code>0xC8</code>/<code>0x48</code>) at <code>0x1943</code>. The detected name is shown as
+      <code>"Insert model &lt;name&gt;"</code>; an unrecognised drive gets <b>"Not available"</b>. Each
+      model sets <code>hrd_model_idx</code> (<code>0x3178</code>), which selects a row of alignment tracks.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Model</th><th>ID pattern</th><th>idx</th><th>cyl_head</th><th>Geometry</th><th>Alignment tracks</th><th>Likely drive <i>(inferred)</i></th></tr></thead>
+      <tbody>
+        <tr><td class="a">528-400</td><td>0x08</td><td>0</td><td>0x14</td><td>40-track · DD</td><td>16, 39, 20, 34</td><td>5.25″ 360 KB</td></tr>
+        <tr><td class="a">526-400</td><td>0xC8</td><td>1</td><td>0x13</td><td>80-track · <b>HD</b></td><td>32, 79, 44, 76</td><td>5.25″ 1.2 MB</td></tr>
+        <tr><td class="a">325-400</td><td>0x40</td><td>2</td><td>0x12</td><td>80-track · <b>DD</b></td><td>40, 79, 44, 76</td><td>3.5″ 720 KB</td></tr>
+        <tr><td class="a">unrecognised</td><td>—</td><td>—</td><td>—</td><td>—</td><td>→ "Not available"</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p>The seek target for a test is read from the table at <code>0x317A</code> as
+      <code>track = byte[0x317A + hrd_model_idx×4 + (index−1)]</code> (a ROM constant, never written at run time).
+      <b>Density</b> comes from bit 7 of the model-ID byte (<code>format_desc[0xB]</code>, HD = 1 / DD = 0,
+      see §6): <code>526-400</code> keeps it set (HD, 500 kbps); <b><code>325-400</code> forces DD</b> via
+      <code>RES 7</code> at <code>0x199D</code> (250 kbps); <code>528-400</code> is the 40-track DD drive.
+      So <b><code>526-400</code> and <code>325-400</code> are the same 80-track mechanism at different
+      densities</b> — the only alignment-test difference is the middle radial cylinder (<b>32</b> vs
+      <b>40</b>); their eccentricity (44) and azimuth (76) tracks are identical, and <code>cyl_head</code>
+      differs by one (19 vs 18). The "likely drive" column reads the leading digit as form factor — a
+      strong inference from the numbers, not stated by the ROM. Per test (model 0):</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Test</th><th>Track index</th><th>Track(s)</th></tr></thead>
+      <tbody>
+        <tr><td class="a">Radial alignment</td><td>low entries + index-0 slot (0x3179 = 0)</td><td><b>0, 16, 39</b> (the "3 tracks")</td></tr>
+        <tr><td class="a">Eccentricity</td><td>record index 3</td><td><b>20</b></td></tr>
+        <tr><td class="a">Azimuth</td><td>record index 4</td><td><b>34</b></td></tr>
+        <tr><td class="a">Positioner / hysteresis</td><td>one track, both approach directions (|out| − |in|)</td><td>one alignment track</td></tr>
+        <tr><td class="a">Spindle speed</td><td>any readable track — needs only the index hole</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>The alignment diskette</b> must therefore carry the <code>hrd_find_burst</code> pattern — a
+      <code>0x55</code> tone (any three consecutive bytes sum to <code>0xFF</code>) — as <b>two
+      radially-offset bursts per head</b> on those cylinders, so a centred head reads them symmetrically
+      (<code>A − B ≈ 0</code>). 528-400 needs it on ≈ tracks 0/16/20/34/39; the 80-track models on
+      ≈ 32/40/44/76/79.</p>
+  </section>
+
+  <section id="config">
+    <div class="snum">10</div>
+    <h2>Config &amp; provenance</h2>
+    <p>Configuration lives in the 0x31xx RAM block and is persisted to a small <b>bit-banged serial
+      EEPROM</b> (helpers at 0x2ACB / 0x2B3E), re-saved whenever the config wizard completes. The
+      boot checksum validates it; corruption forces &ldquo;Run config again&rdquo;.</p>
+
     <h3>Config toggles</h3>
-    <p>The Config menu (hold EXIT at boot) writes a handful of flags into the <code>0x31xx</code> RAM
-      block, persisted to the CAT24C02 EEPROM (settings block, internals §D):</p>
+    <p>The Config menu (hold EXIT at boot) writes these flags into the <code>0x31xx</code> block:</p>
     <div class="scroll"><table>
       <thead><tr><th>Item</th><th>Variable</th><th>Values / effect</th></tr></thead>
       <tbody>
-        <tr><td>Write protect</td><td class="p">wprot_mode 0x3155</td><td>drives <code>0x9C</code> line 2 (<code>0x04</code> on / <code>0x05</code> off)</td></tr>
+        <tr><td>Write protect</td><td class="p">wprot_mode 0x3155</td><td>drives <code>0x9C</code> PC2 (<code>0x04</code> on / <code>0x05</code> off)</td></tr>
         <tr><td>Data-error recovery</td><td class="p">err_recovery 0x314A</td><td>enable = <code>1</code> / disable = <code>3</code> (read in the read/verify path <code>0x0DAF</code>)</td></tr>
-        <tr><td>Serialization</td><td class="p">cfg_byte/hrd_desc_tbl bit 1</td><td>on/off (see internals §A serialization)</td></tr>
+        <tr><td>Serialization</td><td class="p">cfg_byte/hrd_desc_tbl bit 1</td><td>on/off (see §7)</td></tr>
         <tr><td>Copy direction</td><td class="p">cfg_flags bit 7</td><td>in→out / out→in</td></tr>
         <tr><td>Maximal cylinder</td><td class="p">cfg_flags low bits</td><td>edited, clamped to <code>0x55</code>, bit 7 preserved</td></tr>
         <tr><td>Precomp setting</td><td class="p">precomp_sel 0x3166</td><td>write-precomp index → FDC port <code>0xC2</code></td></tr>
         <tr><td>Batch processing</td><td class="p">cfg_batch 0x311F</td><td>batch run count</td></tr>
       </tbody>
     </table></div>
-  </section>
 
-  <section id="config">
-    <div class="snum">09</div>
-    <h2>Config &amp; provenance</h2>
-    <p>Configuration lives in the 0x31xx RAM block and is persisted to a small <b>bit-banged serial
-      EEPROM</b> (helpers at 0x2ACB / 0x2B3E), re-saved whenever the config wizard completes. The
-      boot checksum validates it; corruption forces &ldquo;Run config again&rdquo;.</p>
+    <h3>Config storage — CAT24C02 I²C EEPROM (eeprom_transfer 0x2735)</h3>
+    <p><code>eeprom_transfer</code> is a <b>bidirectional</b> block transfer to the CAT24C02 (bit-banged I²C
+      on port <code>0xF0</code>), despite the name — the direction is a parameter:</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Reg</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="a">A</td><td>direction — <b>0 = load</b> (EEPROM → RAM), <b>non-zero = save</b> (RAM → EEPROM)</td></tr>
+          <tr><td class="a">HL</td><td>RAM buffer (destination on load, source on save)</td></tr>
+          <tr><td class="a">B</td><td>byte count</td></tr>
+          <tr><td class="a">C</td><td>EEPROM word address (0–255)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><em>Save</em> writes one byte per I²C transaction (start + device + word-addr, one data byte, stop;
+      <code>INC</code> address each pass — honours the per-byte write cycle). <em>Load</em> is a single
+      sequential read (start, addr, restart, then <code>B</code> bytes: ACK each, NAK+stop the last).</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>EEPROM offset</th><th>Bytes</th><th>Contents</th><th>RAM</th></tr></thead>
+        <tbody>
+          <tr><td class="a">0x00</td><td>4</td><td>Settings: <code>cfg_flags</code>, <code>cfg_byte</code>, <code>drv_active_cfg</code>, <code>cfg_batch</code> (write-protect, copy dir, serialization, err-recovery, max-cyl)</td><td class="a">0x311C</td></tr>
+          <tr><td class="a">0x04+</td><td>96</td><td>Four <b>Special-format zone tables</b> (24 B/slot; whole set at 0x26CE, slots at computed offsets)</td><td class="a">fmt_geom_recs</td></tr>
+          <tr><td class="a">0xFC</td><td>4</td><td>32-bit <b>lifetime cycle counter</b> — total copies made, shown by <code>show_model_cycles</code></td><td class="a">cycle_cnt</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Boot loads the settings block (0x03BC) and the counter (0x006B); config menus save sub-ranges of
+      0x00–0x03; a completed run bumps and re-saves the counter (0x0337/0x0F85).</p>
+
+    <h3>Provenance — version tags</h3>
     <div class="scroll">
       <table>
         <thead><tr><th>Tag</th><th>Offset</th><th>Date</th><th>Likely meaning</th></tr></thead>
@@ -710,34 +1126,19 @@ sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x
     </div>
     <p class="muted">The three 14-byte version fields are indexed by a pointer table at
       <code>0x0040–0x0045</code> (<code>DW 0x0054, 0x4B8B, 0x52CF</code>). The third tag is
-      <b>R6R1A</b> at 0x52CF, not &ldquo;IR6R1A&rdquo; at 0x52CE — the leading <code>I</code> was a
-      <code>strings</code> artifact from the adjacent <code>iovec_annun</code> pointer's high byte <code>0x49</code>.</p>
-  </section>
-
-  <section id="open">
-    <div class="snum">10</div>
-    <h2>Open questions</h2>
-    <p><b>All resolved.</b> The last hardware unknown — port <code>0xC0</code> — was pinned down by
-      continuity probing of the board; the board photo + datasheets had resolved the rest.</p>
-    <ul class="clean">
-      <li><b>Port <code>0xC0</code> = the high byte of the DRAM bank address</b> <span class="chip c-ok">Verified — probed</span>. <em>Not</em> a drive-control latch. Continuity probing confirms it loads latch <b>U66</b> (data-fed via the U58 buffer), whose outputs feed the DRAM row/high address through the <code>74HCT157</code> mux, and whose write strobe comes from decoder <b>U60</b> (<code>74HCT138</code>, decoding A4–A6 enabled by A7): <b>Y3 → <code>0xB0</code></b> (U65), <b>Y4 → <code>0xC0</code></b> (U66). So the DRAM bank is a <b><code>{0xC0, 0xB0}</code> pair</b> — <code>0xB0</code> the dynamic low byte, <code>0xC0</code> the high byte — which is exactly why boot writes <code>0xFF</code> to <em>both</em>, adjacently (<code>0x0010</code>/<code>0x0012</code>), to point the window at the program-RAM mirror. (Supersedes the earlier guess that grouped <code>0xC0</code> with the <code>0xC2/0xC3/0xC6</code> drive-control ports; those use a different decoder.) See §5 and the README <em>DRAM interface</em> section.</li>
-    </ul>
-    <h3>Resolved during analysis</h3>
-    <ul class="clean">
-      <li><b>Serial controller = Zilog Z80 SIO/0</b> <span class="chip c-ok">Resolved</span> (Z0844006PSC), <em>not</em> an 8251 — confirmed by the board photo, the <b>Zilog Z8440/Z84C40 SIO datasheet</b> (<code>datasheets/Zilog Z0844006PSC SIO.pdf</code>, in the repo — <code>Z0844x06</code> = 6 MHz Z80 SIO, SIO/0 bonding), <b>and</b> the firmware's SIO register model: Tx via RR0 bit 2, Rx via RR0 bit 0, data port = control with A2 cleared (<code>RES/SET 2,C</code>), errors from RR1 (WR0-ptr=1, mask <code>0x70</code>), <code>WR0=0x30</code> error-reset. One SIO carries both channels (A = autoloader <code>0xD0/D4</code>, B = host <code>0xD8/DC</code>); the 8253 supplies the external clock in ×16 mode (153,846 Hz ÷ 16 ≈ 9600 baud). (§2, §5)</li>
-      <li><b>Parallel I/O = a single µPD71055 PPI (U69)</b> <span class="chip c-ok">Resolved</span> — now board-confirmed: register-select A1/A0 = Z80 A3/A2, so its four registers are ports <code>0x90</code>/<code>0x94</code>/<code>0x98</code>/<code>0x9C</code> (PA/PB/PC/control), chip-select off the <code>0x90</code> I/O decode. PA = host bulk-image byte, PB = <code>status_in</code>, PC = the control lines. The <code>0x40–0x70</code> drive latches are separate 74HCT373s. (§2, §3)</li>
-      <li><b>0x9C is the PPI (U69) control register</b> <span class="chip c-ok">Resolved</span> (board probe) — it is <em>not</em> a 74259; the &ldquo;addressable latch&rdquo; is 8255 Bit-Set/Reset of <b>Port C</b>. All 8 lines mapped: PC0/1 keypad columns (→K52 ✅), PC2 write-protect, PC3 bulk-transfer direction (→U74 74ALS245 DIR ✅), PC4/5 datarate A/B, PC6 drive/write enable, PC7 FDC result strobe (§3). The <b>EPROM/RAM map is not a 0x9C bit</b> — it is a <b>U68 PAL</b> function (U68 drives EPROM /CE; U57 /OE=GND; both probed), flipping on the first <code>A15=1</code> fetch. Newly-catalogued chip: <b>U74</b> (host bulk-image Port-A transceiver). <em>Residual:</em> board-confirm the FDC/drive-side pins of PC2/PC4–PC7. </li>
-      <li><b>0xB0</b> <span class="chip c-ok">Resolved</span> is a flat 8-bit DRAM bank latch — no drive-select field; drive UNIT/HEAD select is in the FDC <code>HD/US</code> command byte. (§5; internals §B)</li>
-      <li><b>0xE8 / 0x55</b> <span class="chip c-ok">Resolved</span> is an LCD presence/health self-test with a headless fallback, not a board-ID strap.</li>
-      <li><b>Host opcode table</b> <span class="chip c-ok">Resolved</span> fully mapped: control opcodes 0x09–0x0F plus a duplication-run fall-through (0x07 = BP, 0x01–0x06/0x08 = FDD). (internals §D)</li>
-      <li><b><code>fmt_param_tbl</code> (0x326E)</b> <span class="chip c-ok">Resolved</span> declares 8 standard DOS formats but is dead/unreferenced — verified that no code (including the download loader) reads it. (internals §B)</li>
-    </ul>
+      <b>R6R1A</b> at 0x52CF (a naive <code>strings</code> shows &ldquo;IR6R1A&rdquo; at 0x52CE — the leading
+      <code>I</code> is the adjacent <code>iovec_annun</code> pointer's high byte <code>0x49</code>, not part
+      of the string).</p>
   </section>
 
   <footer>
     <p><b>Method.</b> Disassembled with a purpose-written Z80 disassembler (full CB/ED/DD/FD
-      coverage), cross-referenced against the on-board datasheets, and verified by reading the
-      actual primitives — not pattern-matched from a distance.</p>
+      coverage), cross-referenced against the on-board datasheets, and verified by reading the actual
+      primitives — not pattern-matched from a distance. Each subsystem (FDC/DMA engine, duplication
+      engine, serial protocols, HRD diagnostics) was traced independently, then cross-checked;
+      register-level details were confirmed against the SMC FDC37C65C, µPD8237A DMA, µPD71055 PPI,
+      8253 PIT, Z80 CPU and HD44780 datasheets. The DRAM-banking, <code>0x9C</code>, <code>0xC0</code>,
+      and U68/U74 findings were verified by continuity-probing the board.</p>
     <p class="mono">Image: LSK M6T912F D1_97.bin · 32768 bytes · Z80 · analysis 2026-07-22</p>
   </footer>
 

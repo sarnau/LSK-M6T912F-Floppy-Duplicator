@@ -116,7 +116,7 @@ Do not confuse them `[FW]`:
 
 ## Cross-reference
 
-The duplicator-side handlers are documented in the firmware internals, §D (Serial protocol handlers):
+The duplicator-side handlers are documented in the firmware analysis, §8 (Serial & protocols):
 the client command/ACK loop (`0x13D9`), the status decode (`0x1286`), the connection probe (`0x0220`),
 and the status-vs-ground-truth comparison. The link's electrical side (Z80 SIO + TC232) is in the README
 *Serial / RS-232 connections* note.
