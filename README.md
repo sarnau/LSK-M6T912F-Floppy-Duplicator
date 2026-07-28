@@ -102,7 +102,7 @@ surrounding mux/latch/buffer roles are inferred from the IC types + placement (p
 |---|---|
 | **U68** PALCE20V8H | **DRAM controller** `[V]` — `/RAS0`/`/RAS1`, `/CAS`, `/WE`, mux-select, refresh |
 | **U52/U53/U54** 74HCT157 ×3 | row/column **address multiplexer** (next to the RAM) |
-| **U65/U66/U83/U85** 74HCT373 ×4 | bank (`0xB0`) + DRAM address latches |
+| **U65/U66** 74HCT373 ×2 | bank latches — **U65 = `0xB0`**, **U66 = `0xC0`** (high byte) |
 | **U58/U87** 74HCT245 ×2 | bidirectional **data buffers** to the SIMM `DQ` pins |
 | **U55/U61** 74HCT74 + NOR/inverter glue | `/RAS`→mux→`/CAS` timing |
 
@@ -116,9 +116,11 @@ surrounding mux/latch/buffer roles are inferred from the IC types + placement (p
 - **Address mux** — the `157`s present the **Z80 address as the column** ('a' inputs, e.g. U54 pin 2 =
   Z80 A8 → SIMM A8) and a **latched row** on their 'b' inputs from **U65/U66**. U54 drives the top
   address lines A8/A9/A10 (A11 unused), so **11 muxed lines (A0–A10) → 4 M per slot → 8 MB total**.
-- **Bank/address latches = U65/U66** — data-loaded (their shared D-inputs come off the Z80 data bus via
-  the **U58 `245` buffer**), so `OUT (0xB0)` loads the bank there and it becomes the DRAM row/high
-  address. The other two `373`s (U83/U85) are I/O-port latches, not DRAM.
+- **Bank latches = U65 (`0xB0`) + U66 (`0xC0`)** — data-loaded (shared D-inputs off the Z80 data bus via
+  the **U58 `245` buffer**), strobed by **U60** (`74HCT138`, decoding A4–A6 enabled by A7): **Y3 = `0xB0`
+  → U65**, **Y4 = `0xC0` → U66**. So the DRAM bank is a **`{0xC0, 0xB0}` pair** (`0xB0` dynamic low byte,
+  `0xC0` static high byte set `0xFF` at boot) — which is what port **`0xC0`** does, the project's last
+  open question, **now resolved by probing**. The other two `373`s (U83/U85) are I/O-port latches, not DRAM.
 
 The flat image address is `{0xB0 bank latch[7:0], Z80 A14:0}`: the **top bank bit selects which SIMM**
 (`/RAS0` vs `/RAS1`), and the lower bits are multiplexed to the SIMM's row/column address pins. Each
