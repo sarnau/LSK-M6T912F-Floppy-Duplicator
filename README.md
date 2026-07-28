@@ -28,13 +28,15 @@ A fully-labeled, commented disassembly and analysis of the 32 KB Z80 firmware fo
 
 ## The machine, briefly
 
-- **CPU:** Z80, 32 KB EPROM. The reset stub copies the EPROM into **DRAM bank `0xFF`** and maps
-  it to `0x0000–0x7FFF` (via the `0x9C` control latch), then runs from RAM — a shadowed-ROM design.
+- **CPU:** Z80, 32 KB EPROM. The reset stub copies the EPROM into **DRAM bank `0xFF`** and the
+  **U68 PAL** maps it to `0x0000–0x7FFF` (a ROM→RAM shadow that flips on the first `A15=1` fetch),
+  then runs from RAM — a shadowed-ROM design.
 - **Image buffer:** 8 MB banked DRAM (`0xB0` bank latch), image banks `0x00–0xFE`; bank `0xFF` is
   the program-RAM mirror.
 - **Chipset:** 4× SMC FDC37C65C floppy controllers, NEC µPD8237A DMA (one channel per FDC),
   NEC µPD8253C PIT, a Zilog **Z80 SIO** (dual-channel serial: autoloader + host), HD44780 2×20 LCD,
-  a µPD71055 PPI + 74HCT373 drive latches, and a `0x9C` 8-line addressable control latch. The device is
+  a µPD71055 PPI (U69) whose **Port C** is the `0x9C` control latch (driven by 8255 Bit-Set/Reset),
+  plus `0x40–0x70` 74HCT373 drive latches. The device is
   the Terra Computer Systems **KDP-05 B** (Czech Republic, © 1993) — model from the board sticker; the
   bare PCB is silkscreened **KOP05B** (see [`PCB_INFO.md`](PCB_INFO.md)). The LSK M6T912F is
   the LSK-branded build.
@@ -52,18 +54,19 @@ datasheets are included for reference under [`datasheets/`](datasheets/).
 | NEC µPD8237A | DMA controller (one channel per FDC) | 80–8F | `datasheets/NEC D8237A DMA Controller.pdf` |
 | NEC µPD8253C-2 | Programmable interval timer (baud + spindle timing) | A0–AC | `datasheets/NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
 | Zilog Z80 SIO/0 (Z0844006PSC) | Dual-channel serial — autoloader + host | D0–DC | `datasheets/Zilog Z0844006PSC SIO.pdf` · `datasheets/Zilog Z80SIO Technica Manual.pdf` |
-| NEC µPD71055 | Parallel interface unit (PPI) — drive/motor lines | 40–70, B0–C6 | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
+| NEC µPD71055 (U69) | Parallel interface unit (PPI) — front-panel keypad + control lines (Port C = `0x9C` latch) | 90/94/98/9C | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
 | Zilog Z80 CPU (Z0840006PSC) | Main processor (6 MHz, IM 1) | — | `datasheets/Zilog Z0840006PSC Z80 CPU.pdf` |
 | Hitachi HD44780 | 2×20 character LCD | E0/E8 | `datasheets/Hiatchi HD44780 LCD.pdf` |
 | Microchip TC232 | RS-232 line driver | — | `datasheets/Microchip TC232CPE RS232.PDF` |
 | Alliance AS4C14400 | 1M×4 DRAM (2× 4 MB SIMM = 8 MB image buffer) | bank @ B0 | `datasheets/AS4C14400 1M×4 RAM.PDF` |
 | Catalyst CAT24C02 | I²C serial EEPROM (256×8) — config + serial-number NVRAM | F0 (bit-banged I²C) | `datasheets/CAT24C02.pdf` |
 | Lattice GAL20V8B (U5) | Address-decode PLD | — | `datasheets/GAL20V8B 15LP.pdf` |
-| Lattice/AMD PALCE20V8H (U68) | DRAM controller (RAS/CAS/mux timing) | — | `datasheets/PALCE20V8.PDF` |
+| Lattice/AMD PALCE20V8H (U68) | DRAM controller (RAS/CAS/mux timing) + low-memory arbiter (drives EPROM `/CE`, holds ROM→RAM shadow) | — | `datasheets/PALCE20V8.PDF` |
 
 Clocking: 32.000 MHz + 48.000 MHz crystals (the 8253's 2 MHz input is 32 MHz ÷ 16). The **GAL20V8B (U5)**
 handles I/O chip-select decode; the **PALCE20V8H (U68)**, sited right at the SIMM slots, is the DRAM
-controller (see [Board layout](#board-layout)). The full hardware map, port table, and open questions are in the main analysis.
+controller and also the low-memory arbiter — it drives the EPROM's `/CE` (U57 pin 20) and holds the
+ROM→RAM shadow (see [Board layout](#board-layout)). The full hardware map, port table, and open questions are in the main analysis.
 
 The **autoloader** is a separate device on the RS-232 link, built around its own controller — see the
 [autoloader reference](LSK%20M6T912F%20autoloader.md):
@@ -100,7 +103,7 @@ probing** (below):
 
 | Chips | Role |
 |---|---|
-| **U68** PALCE20V8H | **DRAM controller** `[V]` — `/RAS0`/`/RAS1`, `/CAS`, `/WE`, mux-select, refresh |
+| **U68** PALCE20V8H | **DRAM controller** `[V]` — `/RAS0`/`/RAS1`, `/CAS`, `/WE`, mux-select, refresh; **also drives EPROM `/CE`** (low-memory ROM→RAM shadow arbiter) `[V]` |
 | **U52/U53/U54** 74HCT157 ×3 | row/column **address multiplexer** `[V]` (A0–A3 / A4–A7 / A8–A10) |
 | **U65/U66** 74HCT373 ×2 | bank latches `[V]` — **U65 = `0xB0`**, **U66 = `0xC0`** (high byte) |
 | **U58** 74HCT245 | **data buffer** `[V]` — Z80 data ↔ SIMM `DQ` + bank-latch inputs (U87 is the LCD buffer) |
@@ -110,9 +113,10 @@ probing** (below):
 
 - **U68 (controller) pinout** — outputs: **pin 17 → U77 `/RAS`**, **pin 18 → U78 `/RAS`** (per-slot),
   **pin 22 → `/CAS`** (shared by both slots), **pin 16 → `/WE`**, **pin 19 → the address-mux select**
-  (U54 pin 1); inputs: **pin 3 ← Z80 `/MREQ`**, **pin 9 ← A15**, **pin 2 ← Z80 `/RFSH`**. So `/RAS` is
-  genuinely per-slot, `/CAS`/`/WE`/mux all come from the PAL, and **refresh is PAL-managed off the Z80's
-  own `/RFSH`**.
+  (U54 pin 1), **pin 20 → EPROM `/CE`** (U57 pin 20 — the ROM→RAM shadow); inputs: **pin 3 ← Z80 `/MREQ`**,
+  **pin 9 ← A15**, **pin 2 ← Z80 `/RFSH`**. So `/RAS` is genuinely per-slot, `/CAS`/`/WE`/mux all come
+  from the PAL, **refresh is PAL-managed off the Z80's own `/RFSH`**, and the **low-32 KB EPROM-vs-DRAM
+  decision is made here too** (EPROM `/OE` is tied to GND, so the PAL gates it via `/CE`).
 - **Address mux** — the `157`s present the **Z80 address as the column** ('a' inputs) and a **latched
   row** ('b' inputs) from **U65/U66**. All three verified: **U52 → A0–A3, U53 → A4–A7, U54 → A8–A10**
   (A11 unused), so **11 muxed lines (A0–A10) → 4 M per slot → 8 MB total**.
@@ -123,8 +127,10 @@ probing** (below):
   open question, **now resolved by probing**. The other two `373`s (U83/U85) are I/O-port latches, not DRAM.
 - **Data buffer = U58** — its B-side is the DRAM data bus: **SIMM `DQ0–7` and the U65/U66 bank-latch
   inputs share it** (e.g. `DQ0` ↔ U58 B7 ↔ U65/U66 D0), buffered from the Z80 data bus on the A-side.
-  The other `245`s: **U87 = LCD data buffer (→ K51)**, U47 = CPU/EPROM bus. And **U69 (PPI) drives the
-  front-panel keys + beeper (→ K52)** — not the drive/motor latches (those are discrete `373`s).
+  The other `245`s: **U87 = LCD data buffer (→ K51)**, U47 = CPU/EPROM bus, and **U74 = host bulk-image
+  buffer** (A-side = PPI Port A, `/OE`=GND, DIR = PPI PC3 — the bulk-transfer direction). And **U69 (PPI)
+  drives the front-panel keypad (→ K52)** via Port C columns — not the drive/motor latches (those are
+  discrete `373`s at `0x40–0x70`).
 
 The flat image address is `{0xB0 bank latch[7:0], Z80 A14:0}`: the **top bank bit selects which SIMM**
 (`/RAS0` vs `/RAS1`), and the lower bits are multiplexed to the SIMM's row/column address pins. Each

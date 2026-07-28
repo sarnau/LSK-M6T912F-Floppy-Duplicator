@@ -426,11 +426,16 @@ PORTS = {
     0x8D:'dma_mclr',    # W: master clear / R: temp register
     0x8E:'dma_clrmask', # W: clear all mask bits
     0x8F:'dma_wrmask',  # W: write all 4 mask bits at once
-    0x9C:'ctrl_latch',
+    0x9C:'ctrl_latch',  # PPI U69 control reg: 8255 mode-set + Bit-Set/Reset of Port C (the "control latch" lines)
     0xA0:'pit_c0', 0xA4:'pit_c1', 0xA8:'pit_c2', 0xAC:'pit_ctrl',
     0xB0:'dram_bank', 0xB1:'fdc_reg', 0xC0:'dram_bank_hi', 0xC2:'fdc_precomp', 0xC3:'fdc_rate', 0xC6:'drive_sel_b',
     0xD0:'al_data', 0xD4:'al_stat', 0xD8:'host_data', 0xDC:'host_stat',
-    0xE0:'lcd_cmd', 0xE8:'lcd_data', 0xF0:'panel', 0x90:'bulk_data', 0x94:'status_in', 0x98:'key_scan',
+    0xE0:'lcd_cmd', 0xE8:'lcd_data', 0xF0:'panel',
+    # PPI U69 (uPD71055) registers, selected by Z80 A3/A2 -> chip A1/A0:
+    0x90:'bulk_data',   # Port A  (in): host bulk-image byte, buffered through U74 (74ALS245, DIR=PC3)
+    0x94:'status_in',   # Port B  (in): which FDC IRQ'd / bulk handshake / keypad rows
+    0x98:'key_scan',    # Port C  (out, R-M-W): keypad column drive (PC0/PC1); other PC bits = control lines
+    # 0x9C = control register (see above): mode-set + BSR of Port C
     0x40:'drv_lat0', 0x50:'drv_lat1', 0x60:'drv_lat2', 0x70:'drv_lat3',
 }
 
@@ -686,7 +691,7 @@ COMMENTS = {
     0x033D: 'MANUAL operation mode top level',
     0x03A9: 'reset LCD cursor to home (0,0), repeated 3x (multi-line addressing workaround)',
     0x03B4: 'select DRAM image bank + latch drive config from cfg block',
-    0x03D7: 'restore active DRAM bank (OUT 0x9C) from saved value',
+    0x03D7: 'restore the PPI Port-C control-latch state (OUT 0x9C, U69 BSR) from saved value',
     0x03DD: "size installed DRAM banks (walk via OUT 0xB0, test @0x8000) -> 'Test dram: N kB'",
     0x0432: 'detect FDDs, derive media-config index, install phase_handler from phase_handler_tbl',
     0x047B: 'issue FDC command A to both drives via fdc_op_dispatch; head-select byte from cyl_head bit7',
@@ -706,7 +711,7 @@ COMMENTS = {
     0x072D: 'recalibrate+seek unit1 (and unit2 if double-sided), then flag not-ready error',
     0x074F: 'load drv_active_cfg (0x2D active pattern) into both drive-config latches (ports 0x40/0x60); idle pattern is 0x0E',
     0x0757: 'write 0x0E to both drive latches (0x40/0x60): deselect / motors-off idle state',
-    0x0760: 'datarate ctrl-latch helper: set/clear bit2 of (HL), OUT to port C, mirror bit0 into ctrl_latch 0x9C',
+    0x0760: 'datarate control-latch helper: build an 8255 Bit-Set/Reset byte and OUT to PPI U69 control reg 0x9C (sets one Port C bit: datarate PC4/PC5)',
     0x0777: 'threshold table lookup: scan B entries at HL, return value C for the band matching input (rate/precomp by cyl)',
     0x0788: 'duplication engine main loop: spin-up, read source, run current phase',
     0x078B: 'ensure motor ready via motor_ready_wait; on failure jump to batch error tail 0x10B0',

@@ -64,7 +64,7 @@ TERRA computer systems (c) 1993
 - U54: 74HCT157N — Quad 2:1 data multiplexer
 - U55: SN74HCT74N — Dual D flip-flop, edge-triggered
 - U56: MC74HCT138AN — 3-to-8 line decoder/demultiplexer
-- U57: 32KB EPROM — 32 KB firmware, shadowed into RAM
+- U57: 32KB EPROM — 32 KB firmware, shadowed into RAM (`/OE` pin 22 = GND, always output-enabled; `/CE` pin 20 driven by U68)
 - U58: MC74HCT245AN — Octal bus transceiver, 3-state
 - U59: MC74HCT138AN — 3-to-8 line decoder/demultiplexer
 - U60: MC74HCT138AN — 3-to-8 line decoder/demultiplexer
@@ -73,11 +73,12 @@ TERRA computer systems (c) 1993
 - U65: 74HCT373N — Octal transparent D-latch, 3-state
 - U66: 74HCT373N — Octal transparent D-latch, 3-state
 - U67: SN74HCT125N — Quad 3-state bus buffer
-- U68: PALCE20V8H-25PC/4 — DRAM controller (RAS/CAS/mux timing)
-- U69: NEC µPD71055 Parallel Interface Unit — drive-select, motor, and sensor lines
+- U68: PALCE20V8H-25PC/4 — DRAM controller (RAS/CAS/mux timing) + low-memory arbiter: drives EPROM `/CE` (pin 20 → U57 pin 20) and holds the ROM→RAM shadow state (inputs: /MREQ pin 3, A15 pin 9, /RFSH pin 2)
+- U69: NEC µPD71055 Parallel Interface Unit — front-panel + control PPI. PA=host bulk-image byte (0x90), PB=status_in (0x94), PC=control outputs (0x98 data / 0x9C ctrl-reg BSR): PC0/1 keypad+beeper, PC2 write-protect, PC3 bulk-xfer dir (→U74), PC4/5 datarate A/B, PC6 drive/write enable, PC7 FDC result strobe. Selected by Z80 A3/A2
 - U70: NEC D8253C Programmable Interval Timer — baud clock + spindle/HRD timing
 - U71: Z80 SIO/0 — dual serial: autoloader + host
 - U72: CD74HCT02E — Quad 2-input NOR gate
+- U74: SN74ALS245AN — host bulk-image Port-A transceiver: A-side = PPI U69 Port A (PA0 = pin 4), `/OE` (pin 19) = GND (always enabled), DIR (pin 1) = PPI PC3 (bulk transfer direction)
 - U77: SIMMs (with 2xAS4C14400 1M×4 RAM, BP41C1000b-6 Parity Emulation) — 1 MB image-buffer SIMM
 - U78: SIMMs (with 2xAS4C14400 1M×4 RAM, BP41C1000b-6 Parity Emulation) — 1 MB image-buffer SIMM
 - U79: MC74HCT14AN — Hex Schmitt-trigger inverter

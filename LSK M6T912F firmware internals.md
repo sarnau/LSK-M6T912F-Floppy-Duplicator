@@ -6,7 +6,8 @@ Byte-level drill-downs into the four load-bearing subsystems. Companion to
 
 > **Correction carried into the main doc:** the **DRAM image-buffer bank is selected by port 0xB0**,
 > not 0x9C — proven by the boot DRAM-sizing loop (`OUT (0xB0),A; LD (0x8000),A; CP (0x8000)` @0x03EE)
-> and by every image-window access in the copy/verify/format paths. 0x9C is a separate control/mode latch.
+> and by every image-window access in the copy/verify/format paths. 0x9C is the PPI U69 control register
+> (Port C control lines); the ROM→RAM map is a separate U68 PAL function (both probed — see main §3).
 
 ---
 
@@ -127,11 +128,13 @@ its final enable state. The `8C` clear-flip-flop is pulsed **only in the ch0/ch1
 master-clears it (`8D`) and each arm does exactly four byte-writes. Channel address is 16-bit only
 (`A0–A15`); the DRAM image bank above that is paged separately by port `0xB0`. DMA only ever targets
 image banks `0x00–0xFE`; bank `0xFF` is reserved as the **program-RAM mirror** (boot `LDIR`s the EPROM
-into bank 0xFF at `0x8022`, then `OUT 0x9C,0x92` fixes it at `0x0000–0x7FFF` — see main §3), which is
-why the bank checksum loop at `0x5193` (`INC A; CP 0xFF; RET Z`) walks `0x00–0xFE` and stops at 0xFF.
-The map is set-once: `OUT (0x9C),0x92` and `OUT (0xB0),0xFF` each execute exactly once (boot), and
-runtime `0x9C` strobes (`fdc_poll_complete` `0x0E→0x0F` @0x475E) run with the PC fetching straight
-through from low RAM — so 0x9C is an addressable per-line latch and bank 0xFF stays mapped low.
+into bank 0xFF at `0x8022`, then the **U68 PAL** maps it low at `0x0000–0x7FFF` — a ROM→RAM shadow that
+flips on the first `A15=1` fetch, not the `OUT 0x9C` write; see main §3), which is why the bank checksum
+loop at `0x5193` (`INC A; CP 0xFF; RET Z`) walks `0x00–0xFE` and stops at 0xFF.
+The map is set-once: `OUT (0xB0),0xFF` executes exactly once (boot) and the U68 shadow latches once.
+Runtime `0x9C` strobes (`fdc_poll_complete` `0x0E→0x0F` @0x475E) run with the PC fetching straight
+through from low RAM — the property that first showed `0x9C` is an addressable latch, now confirmed as
+the **PPI U69 control register** (8255 Bit-Set/Reset of Port C).
 
 **Seek family** — RECALIBRATE 0x07 (`0x39A0`), SEEK 0x0F (`0x42DD`, target cyl in C→NCN). After a
 seek/recal interrupt the ISR path `0x462D` **auto-issues SENSE INTERRUPT STATUS 0x08**. Data-rate/
@@ -317,10 +320,9 @@ embedded in the captured disk (as previously suspected). The three radial-displa
 separately via the 8253, above).
 
 The capture reuses the **normal FDC read path**; the `0x9C` `0x0E→0x0F` strobe seen during it is just
-the general `fdc_poll_complete` (0x472D) result-read pulse — one line of the 0x9C addressable latch
-(decode **data = bit 0, select = bits [3:1]**: `0x0E`→`0x0F` is a 0→1 edge on select-`111`/line 7;
-other lines `001` EPROM/RAM map, `010` write-protect, `100`/`101` datarate, `110` static enable).
-See main §3.
+the general `fdc_poll_complete` (0x472D) result-read pulse — one bit of the PPI U69 Port C
+(8255 Bit-Set/Reset: `0x0E`→`0x0F` is a 0→1 edge on **PC7**, the FDC result-read strobe; other Port C
+bits: PC0/1 keypad, PC2 write-protect, PC3 bulk-dir, PC4/5 datarate, PC6 drive enable). See main §3.
 
 ### Supported drive models & which tracks are measured
 

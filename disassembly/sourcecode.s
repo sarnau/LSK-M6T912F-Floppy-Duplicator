@@ -12,13 +12,13 @@
 0017  21 22 00      LD HL,boot_cont  ; source = boot_cont in EPROM
 001A  11 22 80      LD DE,image_buf+0x22  ; dest = image_buf+0x22 in shadow DRAM bank
 001D  ED B0         LDIR  ; block-copy EPROM image into DRAM bank 0xFF
-001F  C3 22 80      JP image_buf+0x22  ; jump into the relocated copy to continue from RAM
+001F  C3 22 80      JP image_buf+0x22  ; jump to the RAM copy at 0x8022; this first A15=1 fetch is what flips U68's ROM->RAM shadow [probed: EPROM /CE = U68 pin20]
 
 ; boot continuation: also copied to DRAM 0x8022 and re-entered there after banking
 boot_cont:
-0022  3E 92         LD A,0x92  ; ctrl_latch value: map RAM over 0x0000-0x7FFF, set flags
-0024  D3 9C         OUT (0x9C),A  ; ctrl_latch — drive the 0x9C addressable latch (switch to shadowed RAM)
-0026  C3 00 01      JP boot_init  ; enter main boot_init now running from DRAM
+0022  3E 92         LD A,0x92  ; 0x92 = 8255 mode-set for PPI U69: PA/PB=input, PC=output (side effect: resets Port C outputs to 0)
+0024  D3 9C         OUT (0x9C),A  ; ctrl_latch — write PPI U69 control register (0x9C). NB: the ROM->RAM shadow is a U68 PAL function, not this write [probed]
+0026  C3 00 01      JP boot_init  ; enter main boot_init, now running from shadow DRAM at 0x0100
 
 padding:
 0029  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00    |...............|
@@ -373,7 +373,7 @@ dram_bank_cfg:
 03D5  77            LD (HL),A  ; store datarate index
 03D6  C9            RET  ; return
 
-; restore active DRAM bank (OUT 0x9C) from saved value
+; restore the PPI Port-C control-latch state (OUT 0x9C, U69 BSR) from saved value
 ctrl_latch_load:
 03D7  3A 55 31      LD A,(wprot_mode)  ; saved latch/write-protect value
 03DA  D3 9C         OUT (0x9C),A  ; ctrl_latch — restore ctrl latch
@@ -862,7 +862,7 @@ drive_cfg_latch:
 075D  D3 60         OUT (0x60),A  ; drv_lat2 — write idle to drive latch 2
 075F  C9            RET  ; return
 
-; datarate ctrl-latch helper: set/clear bit2 of (HL), OUT to port C, mirror bit0 into ctrl_latch 0x9C
+; datarate control-latch helper: build an 8255 Bit-Set/Reset byte and OUT to PPI U69 control reg 0x9C (sets one Port C bit: datarate PC4/PC5)
 update_ctrl_latch:
 0760  B7            OR A  ; set flags from A (rate select)
 0761  CB 96         RES 2,(HL)  ; clear datarate bit 2 in latch byte

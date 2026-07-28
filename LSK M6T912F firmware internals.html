@@ -108,8 +108,8 @@
     <span class="lbl">Correction carried into the main doc</span>
     The drill-downs found that the <b>DRAM image-buffer bank is selected by port 0xB0</b>, not 0x9C —
     proven by the boot DRAM-sizing loop (<code>OUT (0xB0),A; LD (0x8000),A; CP (0x8000)</code> at 0x03EE)
-    and by every image-window access in the copy/verify/format paths. Port 0x9C is a separate
-    control/mode latch. The main analysis and port map have been updated.
+    and by every image-window access in the copy/verify/format paths. Port 0x9C is the PPI U69 control
+    register (Port C control lines); the ROM→RAM map is a separate U68 PAL function (both probed — main §3).
   </div>
 
   <nav class="toc" aria-label="Contents">
@@ -271,12 +271,14 @@
       byte-writes. The channel address is 16-bit only (<code>A0–A15</code>); the DRAM image bank above it
       is paged separately by port <code>0xB0</code>. DMA only ever targets image banks <b>0x00–0xFE</b>;
       bank <b>0xFF</b> is reserved as the <b>program-RAM mirror</b> (boot <code>LDIR</code>s the EPROM into
-      bank 0xFF at 0x8022, then <code>OUT 0x9C,0x92</code> fixes it at 0x0000–0x7FFF — see main §3), which
+      bank 0xFF at 0x8022, then the <b>U68 PAL</b> maps it low at 0x0000–0x7FFF — a ROM→RAM shadow that
+      flips on the first <code>A15=1</code> fetch, not the <code>OUT 0x9C</code> write; see main §3), which
       is why the bank checksum loop at <code>0x5193</code> (<code>INC A; CP 0xFF; RET Z</code>) walks
-      0x00–0xFE and stops at 0xFF. The map is set-once: <code>OUT (0x9C),0x92</code> and
-      <code>OUT (0xB0),0xFF</code> each execute exactly once (boot), and runtime 0x9C strobes
+      0x00–0xFE and stops at 0xFF. The map is set-once: <code>OUT (0xB0),0xFF</code> executes exactly once
+      (boot) and the U68 shadow latches once. Runtime 0x9C strobes
       (<code>fdc_poll_complete</code> <code>0x0E→0x0F</code> @0x475E) run with the PC fetching straight
-      through from low RAM — so 0x9C is an addressable per-line latch and bank 0xFF stays mapped low.</p>
+      through from low RAM — the property that first showed 0x9C is an addressable latch, now confirmed as
+      the <b>PPI U69 control register</b> (8255 Bit-Set/Reset of Port C).</p>
 
     <h4>Seek family &amp; SENSE INTERRUPT (auto-issued)</h4>
     <ul class="clean">
@@ -476,10 +478,9 @@ EA 00 00 FF FF  JMP FFFF:0000  <span class="c">; reboot</span></pre>
       (angular), spindle uses <code>K = 1</code> (raw RPM — derived separately via the 8253, above).</p>
     <p>The capture reuses the <b>normal FDC read path</b>; the <code>0x9C</code> <code>0x0E→0x0F</code>
       strobe seen during it is just the general <code>fdc_poll_complete</code> (0x472D) result-read
-      pulse — one line of the 0x9C addressable latch (decode <b>data = bit 0, select = bits [3:1]</b>:
-      <code>0x0E</code>→<code>0x0F</code> is a 0→1 edge on select-<code>111</code>/line 7; other lines
-      <code>001</code> EPROM/RAM map, <code>010</code> write-protect, <code>100</code>/<code>101</code>
-      datarate, <code>110</code> static enable). See main §3.</p>
+      pulse — one bit of the PPI U69 Port C (8255 Bit-Set/Reset: <code>0x0E</code>→<code>0x0F</code> is a
+      0→1 edge on <b>PC7</b>, the FDC result-read strobe; other Port C bits: PC0/1 keypad, PC2 write-protect,
+      PC3 bulk-dir, PC4/5 datarate, PC6 drive enable). See main §3.</p>
 
     <h4>Supported drive models &amp; which tracks are measured</h4>
     <p>HRD alignment is only supported on <b>three drive models</b>, and the model isn't chosen from a

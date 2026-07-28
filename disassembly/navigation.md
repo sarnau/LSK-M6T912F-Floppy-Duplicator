@@ -133,7 +133,7 @@ count of static call/branch sites into the routine.
 | `0x033D` | `manual_mode` | 2 | MANUAL operation mode top level |
 | `0x03A9` | `lcd_home3` | 8 | reset LCD cursor to home (0,0), repeated 3x (multi-line addressing workaround) |
 | `0x03B4` | `dram_bank_cfg` | 2 | select DRAM image bank + latch drive config from cfg block |
-| `0x03D7` | `ctrl_latch_load` | 1 | restore active DRAM bank (OUT 0x9C) from saved value |
+| `0x03D7` | `ctrl_latch_load` | 1 | restore the PPI Port-C control-latch state (OUT 0x9C, U69 BSR) from saved value |
 | `0x03DD` | `dram_test` | 1 | size installed DRAM banks (walk via OUT 0xB0, test @0x8000) -> 'Test dram: N kB' |
 | `0x0432` | `fdd_detect` | 1 | detect FDDs, derive media-config index, install phase_handler from phase_handler_tbl |
 | `0x047B` | `fdc_cmd_both_drives` | 4 | issue FDC command A to both drives via fdc_op_dispatch; head-select byte from cyl_head bit7 |
@@ -154,7 +154,7 @@ count of static call/branch sites into the routine.
 | `0x072D` | `seek_both_drives` | 2 | recalibrate+seek unit1 (and unit2 if double-sided), then flag not-ready error |
 | `0x074F` | `set_drive_cfg` | 8 | load drv_active_cfg (0x2D active pattern) into both drive-config latches (ports 0x40/0x60); idle pattern is 0x |
 | `0x0757` | `drive_cfg_latch` | 8 | write 0x0E to both drive latches (0x40/0x60): deselect / motors-off idle state |
-| `0x0760` | `update_ctrl_latch` | 2 | datarate ctrl-latch helper: set/clear bit2 of (HL), OUT to port C, mirror bit0 into ctrl_latch 0x9C |
+| `0x0760` | `update_ctrl_latch` | 2 | datarate control-latch helper: build an 8255 Bit-Set/Reset byte and OUT to PPI U69 control reg 0x9C (sets one  |
 | `0x0777` | `range_table_lookup` | 2 | threshold table lookup: scan B entries at HL, return value C for the band matching input (rate/precomp by cyl) |
 | `0x0788` | `dup_engine_loop` | 3 | duplication engine main loop: spin-up, read source, run current phase |
 | `0x078B` | `require_motor_ready` | 2 | ensure motor ready via motor_ready_wait; on failure jump to batch error tail 0x10B0 |

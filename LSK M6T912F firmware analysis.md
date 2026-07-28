@@ -36,12 +36,12 @@ Origin markers in the strings — `Adresa =` (Czech/Slovak/Croatian "address"), 
 | DMA | U7 | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] | `datasheets/NEC D8237A DMA Controller.pdf` |
 | Timer | U70 | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] | `datasheets/NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
 | Serial | U71 | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] | `datasheets/Zilog Z0844006PSC SIO.pdf` · `datasheets/Zilog Z80SIO Technica Manual.pdf` |
-| Parallel I/O | U69 | NEC µPD71055 PPI (+ 74HCT373 latches) | 40–70, B0–C6 | Drive select, motor, sensors, bank/rate | [V] | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
+| Parallel I/O | U69 | NEC µPD71055 PPI | 90/94/98/9C | PA host bulk data · PB status_in · PC control (0x9C latch: keypad, write-protect, bulk-dir, datarate, enable, FDC strobe) | [V] | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
 | Display | K51 | HD44780 LCD (2×20) — module via connector K51 | E0/E8 | Front-panel character display | [V] | `datasheets/Hiatchi HD44780 LCD.pdf` |
 | Image DRAM | U77/U78 | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `datasheets/AS4C14400 1M×4 RAM.PDF` |
 | Line driver | U101 | Microchip TC232 | — | RS-232 level shifting | [R] | `datasheets/Microchip TC232CPE RS232.PDF` |
 | Config EEPROM | U86 | Catalyst CAT24C02 (I²C, 256×8) | F0 (bit-banged I²C) | Non-volatile settings + serial number (write-protect, copy dir, serialization, err-recovery, max-cyl) | [V] | `datasheets/CAT24C02.pdf` |
-| Decode / DRAM | U5, U68 | Lattice GAL20V8B + PALCE20V8H | — | GAL20V8B (U5) = I/O chip-select decode; PALCE20V8H (U68) = DRAM controller (RAS/CAS/mux, at the SIMMs) | [R] | `datasheets/GAL20V8B 15LP.pdf` · `datasheets/PALCE20V8.PDF` |
+| Decode / DRAM | U5, U68 | Lattice GAL20V8B + PALCE20V8H | — | GAL20V8B (U5) = I/O chip-select decode; PALCE20V8H (U68) = DRAM controller (RAS/CAS/mux, at the SIMMs) **and** low-memory arbiter — drives EPROM `/CE` and holds the ROM→RAM shadow (probed) | [R] | `datasheets/GAL20V8B 15LP.pdf` · `datasheets/PALCE20V8.PDF` |
 
 The parallel I/O is a **single µPD71055 PPI** (there is no Z8420 PIO — an earlier assumption that has
 been corrected); together with discrete 74HCT373 latches it drives the digital motor/select/sense
@@ -52,8 +52,9 @@ The device is the **Terra Computer Systems KDP-05 B** (Czech Republic, © 1993) 
 from the board's sticker; the bare PCB is silkscreened **KOP05B** (see `PCB_INFO.md`). The "LSK
 M6T912F" is the LSK-branded build. Clocking: **32.000 MHz** and **48.000 MHz** crystals; the 8253's 2 MHz
 input is 32 MHz ÷ 16. I/O address decode is handled by the GAL20V8B (U5); the PALCE20V8H (U68), sited at
-the SIMM slots, is the **DRAM controller** (RAS/CAS/mux timing). All larger parts are confirmed
-against on-board markings and manufacturer datasheets.
+the SIMM slots, is the **DRAM controller** (RAS/CAS/mux timing) and doubles as the **low-memory
+arbiter** — it drives the EPROM's `/CE` (U57 pin 20) and holds the ROM→RAM shadow state (probed §3).
+All larger parts are confirmed against on-board markings and manufacturer datasheets.
 
 ## 3. Memory architecture
 
@@ -61,14 +62,14 @@ against on-board markings and manufacturer datasheets.
 0x0000 ────────────────────────── 0x8000 ────────────────────────── 0xFFFF
 | Program RAM = DRAM bank 0xFF,           | Banked DRAM window —         |
 | loaded with the EPROM mirror at boot    | disk image buffer, banks     |
-| then mapped low by OUT 0x9C,0x92        | 0x00–0xFE (bank@0xB0)         |
+| then mapped low by the U68 shadow       | 0x00–0xFE (bank@0xB0)         |
 ```
 
 The two windows are the **same 0xB0-banked DRAM array**. At boot the bank latch is set to **`0xFF`**
-and the EPROM is `LDIR`-copied into that bank's window (`0x8022`); `OUT 0x9C,0x92` then fixes bank
-`0xFF` permanently at `0x0000–0x7FFF` (decoupled from `0xB0`) so the running code is unaffected when
-`0xB0` later cycles image banks `0x00–0xFE` in the upper window. See "Bank 0xFF is the program
-mirror" below.
+and the EPROM is `LDIR`-copied into that bank's window (`0x8022`); the **U68 low-memory arbiter** then
+flips its ROM→RAM shadow (on the first upper-memory fetch — `JP 0x8022`), replacing the EPROM at
+`0x0000–0x7FFF` with bank `0xFF` so the running code is unaffected when `0xB0` later cycles image banks
+`0x00–0xFE` in the upper window. See "Bank 0xFF is the program mirror" below.
 
 - **Variables:** `0x3100–0x33FF` main state · `0x4A00–0x4BFF` per-drive FDC + keypad state blocks ·
   `0x5200–0x52FF` system & config (I/O-mode vectors `0x52C9/CB/CD`, checksum bytes at end).
@@ -109,8 +110,8 @@ selects which 32 KB bank appears in the 0x8000–0xFFFF window (8 MB = **256 ban
 reserved: **bank `0xFF` is the program RAM**, so the image buffer is banks **`0x00–0xFE`** (255
 banks ≈ 7.97 MB) — enough to cache several full disk images (≈ 5× 1.44 MB). The `Test dram: N kB`
 routine (`0x03DD`) sizes the installed DRAM at boot by walking banks — `OUT (0xB0),A; LD (0x8000),A;
-CP (0x8000)` — and counting those that read back. (Port `0x9C`, written `0x92` at boot, is a separate
-multi-function control/mode latch — see the port map.)
+CP (0x8000)` — and counting those that read back. (Port `0x9C`, written `0x92` at boot, is the
+PPI U69 control register — an 8255 mode-set, not part of the map; see §3.)
 
 ### Bank 0xFF is the program mirror
 
@@ -122,7 +123,8 @@ copy of the EPROM at boot and then mapped low. Traced byte-for-byte at reset:
 | `0x000E` | `LD A,0xFF; OUT (0xB0),A` | select **bank 0xFF** in the 0x8000 window |
 | `0x0014` | `LD BC,0x5FFF; LD HL,0x0022; LD DE,0x8022; LDIR` | copy EPROM `0x0022–0x6021` into bank 0xFF (`0x8022+`) |
 | `0x001F` | `JP image_buf+0x22` | run the fresh copy **inside bank 0xFF's window** |
-| `0x0022` | `LD A,0x92; OUT (0x9C),A` | latch bank 0xFF permanently at `0x0000–0x7FFF`, drop EPROM |
+| `0x001F` | `JP 0x8022` | first `A15=1` fetch → flips the U68 ROM→RAM shadow (bank 0xFF now at `0x0000–0x7FFF`, EPROM out) |
+| `0x0022` | `LD A,0x92; OUT (0x9C),A` | 8255 mode-set of PPI U69 (PA/PB in, PC out) — **not** the map |
 | `0x0026` | `JP boot_init (0x0100)` | continue from the RAM copy |
 
 Two independent facts confirm bank 0xFF is *reserved for code*, not an image bank:
@@ -137,69 +139,94 @@ Two independent facts confirm bank 0xFF is *reserved for code*, not an image ban
 This is why "code loading" (field firmware update) can work at all: the running image lives in
 writable bank-0xFF RAM, so a new image can be streamed into it and re-checksummed in place.
 
-**The mapping is set-once and permanent** (verified). `OUT (0x9C),0x92` executes exactly once, at
-boot `0x0022` — the only other `LD A,0x92` is `0x07EA: LD (fmt_mode),A`, a RAM store. `OUT (0xB0),0xFF`
-also executes exactly once (`0x0010`); every later `0xB0` write loads an *image* bank
-(`track_bank_a/b`, or `0xFE` scratch), never 0xFF. So neither the 0x9C map bit nor the bank-0xFF
-selection is ever re-commanded. Runtime writes to both ports demonstrably leave low RAM intact: the
-copy loop does `OUT (0xB0),A` then keeps fetching from low RAM while building a `≥0x8000` pointer
-(`0x0E49`), and `fdc_poll_complete` pulses the *same* port 0x9C (`0x0E`→6 NOPs→`0x0F`, `0x475E`) with
-the PC running straight through those NOPs. A plain 8-bit register at 0x9C couldn't survive this
-(writing `0x0E` after `0x92` would clear 0x92's high bits); 0x9C must be an **addressable per-line
-latch** (74259-class) where the boot commands the map line once and every runtime write selects a
-different line — so bank 0xFF stays mapped low for the machine's entire runtime.
+**The mapping is set-once and permanent** (verified). `OUT (0xB0),0xFF` executes exactly once
+(`0x0010`); every later `0xB0` write loads an *image* bank (`track_bank_a/b`, or `0xFE` scratch),
+never 0xFF. So the bank-0xFF selection is never re-commanded, and the ROM→RAM shadow (a U68 function,
+below) latches once and holds. A useful side-observation about port `0x9C` falls out of the same
+trace: `fdc_poll_complete` pulses `0x9C` (`0x0E`→6 NOPs→`0x0F`, `0x475E`) with the PC running straight
+through those NOPs from low RAM. A plain 8-bit register at `0x9C` couldn't survive this (writing
+`0x0E` after the boot `0x92` would corrupt the earlier state); `0x9C` had to be an **addressable
+per-line latch**. Board probing since confirmed exactly that — it is the **µPD71055 PPI (U69) control
+register**, driven by 8255 Bit-Set/Reset (§ below) — while the low-memory map itself turned out to be
+a separate **U68 PAL** function, not a `0x9C` bit at all.
 
-#### 0x9C latch decode (verified)
+#### The 0x0000–0x7FFF map is a U68 (PAL) function [probed]
 
-The addressable-latch decode is pinned from firmware to **data = bit 0, select = bits [3:1]**:
+An earlier draft attributed the ROM→RAM swap to `OUT (0x9C),0x92`. Board continuity probing has
+**corrected this**: the swap is a function of the DRAM-controller PAL **U68**, not the 0x9C write.
 
-- *Bit 0 is data* — `update_ctrl_latch` (`0x0760`, `CP 0x01; OR 0x01`) and the `0x24DD` path
-  (`LD A,0x05; XOR 0x01` → `0x04`/`0x05`) both toggle **only bit 0** on a fixed select; the FDC
-  strobe `0x0E`→`0x0F` differs only in bit 0.
-- *Select is the low bits, not the high nibble* — `0x04` (write-protect) and `0x0E` (FDC strobe) are
-  distinct runtime functions, so they must occupy different lines; only a bits-[3:1] select separates
-  them (lines 2 vs 7). A high-nibble select would collide them → contradiction. The high nibble
-  (`0x92`'s `0x90`, `0x2D`'s `0x20`) is therefore don't-care.
+- `U57 /OE` (pin 22) = **GND** — the EPROM's output is always enabled.
+- `U57 /CE` (pin 20) → **U68 pin 20** — the PAL gates the EPROM's chip-select.
+- U68's inputs are memory-side only — **/MREQ** (pin 3), **A15** (pin 9), **/RFSH** (pin 2) — with no
+  I/O-decode input, so U68 *cannot* observe the `0x9C` write at all.
 
-**Six distinct lines** are observed, all consistent with the decode:
+So U68 is the low-memory arbiter: for `A15 = 0` it either asserts EPROM `/CE` or lets DRAM bank 0xFF
+answer, holding the ROM→RAM shadow in a registered macrocell. The shadow flips **once**, memory-side;
+the most plausible trigger is the **first `A15 = 1` fetch** — the `JP 0x8022` at `0x001F` that enters
+the bank-0xFF copy (the classic "boot from ROM, run from the shadow copy" design). `OUT (0x9C),0x92`
+at `0x0022` is unrelated: it is the PPI mode-set (below). *(The set-once, never-re-commanded behavior
+argued above still holds — only the mechanism changes.)*
 
-| sel `D3:D1` | line | function | values | data (D0) |
-|---|---|---|---|---|
-| `001` | 1 | **EPROM/RAM map** | `0x92` — **boot only** | 0 = RAM low, EPROM out |
-| `010` | 2 | **write-protect** | `0x04`/`0x05` | protect on / off |
-| `100` | 4 | **datarate select, drive A** | `0x08`/`0x09` | rate class (from `fdc_rate_a`) |
-| `101` | 5 | **datarate select, drive B** | `0x0A`/`0x0B` | rate class (from `fdc_rate_b`) |
-| `110` | 6 | static drive/write enable | `0x2D` (boot, `bit0=1`) | 1 = asserted (permanent) |
-| `111` | 7 | **FDC result-read strobe** | `0x0E`→`0x0F` | 0→1 rising edge |
+#### 0x9C is the µPD71055 PPI (U69) control register [probed]
+
+`0x9C` behaves as an addressable per-line latch because it **is** one: it is the control register of
+the **µPD71055 PPI (U69)**, driven with 8255 **Bit-Set/Reset** commands. Each BSR write sets or clears
+exactly one **Port C** bit and leaves the rest intact — precisely why the `0x0E`→`0x0F` FDC strobe
+never disturbs the datarate/enable lines (the property that first proved 0x9C was an addressable
+latch, not a plain register). Probing confirms U69: register-select `A1/A0` = Z80 `A3/A2` (so
+control = `0x9C`; Port A/B/C = `0x90`/`0x94`/`0x98`), chip-select off the `0x90` I/O decode, `/WR`
+gated through the U72 NOR cluster.
+
+The BSR control byte is `0 x x x [C-bit 2:0] [value]` — exactly the firmware's **data = bit 0,
+select = bits [3:1]**. `0x92` (bit 7 = 1) is not BSR but an 8255 **mode-set**: PA/PB = input,
+PC = output, and as a side effect the entire Port C output latch resets to 0.
+
+**Port C — all 8 lines** (✅ = confirmed by board probe; the rest firm from firmware):
+
+| C-bit | U69 pin | line / function | evidence |
+|---|---|---|---|
+| PC0 | 14 | keypad column (K52) ✅ | R-M-W scan on `0x98` |
+| PC1 | 15 | keypad column (K52) ✅ | R-M-W scan on `0x98` |
+| PC2 | 16 | **write-protect** (WP-recognition) | `0x04`/`0x05`; host op `0x0D` @ `0x200B` |
+| PC3 | 17 | **bulk-image transfer direction** → U74 DIR ✅ | bulk channel `0x216A` |
+| PC4 | 13 | **datarate select, drive A** | `0x08`/`0x09`, `update_ctrl_latch` |
+| PC5 | 12 | **datarate select, drive B** | `0x0A`/`0x0B` |
+| PC6 | 11 | drive/write bus enable (held 1) | `0x2D` @ `0x03C2`, never cleared |
+| PC7 | 10 | **FDC result-read strobe** | `0x0E`→`0x0F` rising edge |
 
 Function derivations (firm unless noted):
 
-- **Line 2 = write-protect.** The `0x24DD` handler is the front-panel **"Write protect"** config screen
+- **PC3 = bulk-image transfer direction.** The host bulk channel (`0x90`/`0x94`/`0x9C`, `0x216A`) moves
+  bytes through PPI Port A, buffered to the host link by **U74 (74ALS245)**: `/OE` (pin 19) = GND,
+  **DIR (pin 1) = PC3** (both probed). Toggling PC3 turns the transceiver around between receive and
+  send — the repeated `OUT (0x9C)` writes in the bulk loop (`0x21D0`, `0x2192`, `0x2241`) are these
+  direction flips. *(This corrects an earlier guess that PC3 was the EPROM/RAM map line.)*
+- **PC2 = write-protect.** The `0x24DD` handler is the front-panel **"Write protect"** config screen
   (`get_key` → `0x04`/`0x05` → store `wprot_mode` → `config_wprotect`); the `"Write protect"` string
   sits at `0x24EF`. `bit0` carries the protect flag. It's also driven remotely: host op `0x0D`
   (`0x200B`) writes a host-supplied byte to `0x9C` and caches it in `wprot_mode`.
-- **Lines 4 & 5 = per-drive datarate select.** `update_ctrl_latch` (`0x0760`) is called with
+- **PC4 & PC5 = per-drive datarate select.** `update_ctrl_latch` (`0x0760`) is called with
   `A = fdc_rate_a`/`fdc_rate_b` (a cylinder-banded rate from `range_table_lookup`) and `E = 0x08`
-  (→ line 4, drive A) / `E = 0x0A` (→ line 5, drive B); it `OR 0x01`s `bit0` when the rate class is 1,
+  (→ PC4, drive A) / `E = 0x0A` (→ PC5, drive B); it `OR 0x01`s `bit0` when the rate class is 1,
   and in parallel sets `bit2` of the drive latch (`0x50`/`0x70`, `drv_lat1/3`). The banded rate is read
   from the **Special-format zone tables** (`fmt_geom_recs`): `range_table_lookup` (`0x092A`, `B=6`)
   scans a head's 6 `{start-cyl, rate}` zones for the current cylinder and returns the `N/L/H` flag —
   so N/L/H is confirmed to be **per-cylinder data rate** (variable-rate zoned formatting).
-- **Line 6 = a static enable, *not* precompensation.** Its data bit is `bit0` of `drv_active_cfg` — a
+- **PC6 = a static enable, *not* precompensation.** Its data bit is `bit0` of `drv_active_cfg` — a
   **hardcoded constant `0x2D`** (written once at `0x01B7`, never config-changed). Every consumer uses
   only that bit (all do `AND 0x01`, some even force `SET 0,A`), and it is always `1`. The same bit is
   fanned into the drive-control latches (`0x40`/`0x60`, the *active* pattern `0x2D` vs *idle* `0x0E`)
-  and written once to 0x9C line 6 at boot (`0x03C2`, via `dram_bank_cfg`) — never cleared. So line 6 is
-  a **permanently-asserted global enable**. The real write-precompensation is a *separate* path:
+  and written once to PC6 at boot (`0x03C2`, via `dram_bank_cfg`) — never cleared. So PC6 is a
+  **permanently-asserted global enable**. The real write-precompensation is a *separate* path:
   `fdc_datarate_precomp` (`0x1141`) computes it per-geometry and outputs to **FDC port `0xC2`
-  (`fdc_precomp`)**. Line 6's exact physical signal (write-gate / reduced-write-current / drive-enable)
+  (`fdc_precomp`)**. PC6's exact physical signal (write-gate / reduced-write-current / drive-enable)
   isn't determinable from firmware, but its behavior — set-once, held high — is. *(The disassembly
   symbol was renamed from the misleading `precomp_val` to `drv_active_cfg` to reflect this.)*
 
-The map line (`001`) is written by exactly one instruction in the whole image (`OUT (0x9C),0x92`
-@ `0x0022`); no runtime write ever selects it. **Not** derivable from firmware: the physical A0–A2
-ordering (permuting relabels the line numbers but preserves the grouping), which Q-pin drives
-which board signal, and the meaning of the don't-care high bits — all need the schematic.
+The board probe resolves what firmware alone could not: the chip (**U69**), the register decode, and
+three of the eight Port C destinations (PC0/PC1 → K52 keypad/beeper, PC3 → U74 direction). The
+remaining five (PC2, PC4–PC7) are firm from firmware; their FDC/drive-side pins can be board-confirmed
+but were out of scope for this pass.
 
 ## 4. Boot sequence
 
@@ -207,7 +234,8 @@ which board signal, and the meaning of the don't-care high bits — all need the
 |---|---|---|
 | 1 | 0000 | Init 8237 DMA (`OUT 0x88,0xA0`; `0x8D,0x8F=0x0F`), `SP=0x8000`, **select DRAM bank 0xFF (program-RAM window)** via `OUT 0xB0,0xFF`; then `OUT 0xC0,0xFF` (the DRAM bank **high byte** — see port map / §10) |
 | 2 | 001D | `LDIR` copies EPROM 0x0022–0x6021 → **bank 0xFF** at 0x8022, then `JP 0x8022` (runs the copy in bank 0xFF's window) |
-| 3 | 0022 | `OUT 0x9C,0x92` fixes bank 0xFF at 0x0000–0x7FFF (EPROM drops out; bank decoupled from later `0xB0` changes) → `JP 0x0100` |
+| 3 | 001F | `JP 0x8022` (first upper-memory fetch) flips U68's ROM→RAM shadow → bank 0xFF at 0x0000–0x7FFF, EPROM out |
+| 3b | 0022 | `OUT 0x9C,0x92` = 8255 mode-set of PPI U69 (not the map) → `JP 0x0100` |
 | 4 | 0105 | Checksum RAM copy (sum 0x0100–0x52EF). Mismatch → **"CODE TRANSFER ERROR"**, retry |
 | 5 | 4DD9 | `IM 1`; program 8253 counter 0 (baud) + c1/c2; init both Z80 SIO channels; drain receivers |
 | 6 | 03DD | Size DRAM banks → **"Test dram: N kB"** |
@@ -232,11 +260,12 @@ of the four FDCs.
 | E8 | HD44780 LCD | data reg (RS=1); presence self-test (write `0x55`, read back) | `lcd_byte_out` `0x4C43` with C=0xE8; probe `0x4BCC`, readback `0x4BDD` → headless on mismatch | [V] |
 | B0 | DRAM bank latch | image-buffer 32 KB bank select | DRAM sizing `OUT (0xB0),A` @0x03EE; per-track bank before every 0x8000 access (`0x0E49/0x1D55/0x1CEC`) | [V] |
 | C0 | **DRAM bank latch — high byte** (U66) | upper half of the `{0xC0,0xB0}` DRAM bank address; boot sets `0xFF` alongside the B0 write | continuity-probed: U66 data-fed via U58, outputs → `157` mux row inputs, strobed by U60 (`74138`) Y4 = `0xC0` decode | [V] |
-| 9C | control/mode latch | boot memory-mode (`0x92`); host bulk-channel strobe (`0x0E/0x0F`); drive/analog control (`0x04`) | `OUT 0x9C,0x92` at boot; strobe in `0x216A`; exact bit-map unresolved | [R] |
-| 90/94 | bulk channel | image data-in / ready (bit6) | download `0x216A`, `0xAA55` frame sync | [R] |
+| 90/94/98/9C | **PPI U69** (µPD71055) | PA=host bulk data (0x90) · PB=status_in (0x94) · PC=control (0x98 data / 0x9C ctrl-reg BSR) | Port C lines: PC0/1 keypad columns, PC2 write-protect, PC3 bulk-dir (→U74), PC4/5 datarate A/B, PC6 drive enable, PC7 FDC strobe | [V] |
+| 90/94 | bulk channel (PPI PA/PB) | image data-in / ready (bit6) | download `0x216A`, `0xAA55` frame sync; PA buffered via U74 | [R] |
 | B1/C2/C3 | FDC glue | data-rate / precomp select | precomp init `0x0980` (250/500 kbps) | [R] |
 | 40/50/60/70 B0/C6 | µPD71055 PPI / 74HCT373 | drive select · motor · side | reset `OUT 0x40/0x60,0x0E`; DOR builder `0x3CD3` | [?] |
-| 94/98/F0 | panel + EEPROM | 4 keys · beeper · serial NVRAM | key scan `0x4D0B`; key decode `0x4590`; beeper on `0xF0`; EEPROM `0x2ACB` | [R] |
+| 94/98 | keypad (PPI PB/PC) | 4 keys via 2×2 matrix | columns on `0x98` (PC0/1), rows on `0x94`; scan `0x4D0B`, decode `0x4590` | [V] |
+| F0 | panel latch + I2C EEPROM | beeper · serial NVRAM (U86) | beeper on `0xF0`; EEPROM bit-bang `0x2ACB` | [R] |
 
 **Corrected during analysis** — direct disassembly settled three initially-disputed assignments:
 0x00/10/20/30 are four FDCs (textbook 765 MSR polling), not sensor latches; 0xD0–0xDC are the two
@@ -457,8 +486,8 @@ the board**; the board photo + datasheets had resolved the rest.
 **Resolved during analysis** (were open in earlier revisions):
 
 - **Serial controller = Zilog Z80 SIO/0** (Z0844006PSC), *not* an 8251 — confirmed by the board photo, the **Zilog Z8440/Z84C40 SIO datasheet** (`datasheets/Zilog Z0844006PSC SIO.pdf`, in the repo — the `Z0844x06` = 6 MHz Z80 SIO, SIO/0 bonding), **and** the firmware's SIO register model: Tx via RR0 bit 2, Rx via RR0 bit 0, data port = control port with A2 cleared (`RES/SET 2,C`), errors read from RR1 (WR0-pointer=1, mask `0x70`), and `WR0=0x30` error-reset. One SIO carries both channels (A = autoloader `0xD0/D4`, B = host `0xD8/DC`); the 8253 supplies the external clock in ×16 mode (153,846 Hz ÷ 16 ≈ 9600 baud). (§2, §5)
-- **Parallel I/O = a single µPD71055 PPI** (no Z8420 PIO — an earlier mis-assumption from a spurious datasheet, since removed). The `0x40–0x70`/`B0`/`C6` write-only latches are PPI ports and/or discrete 74HCT373s; the firmware's write-only usage doesn't reveal the exact split, but the parallel-interface chip is the PPI. (§2)
-- **0x9C is an 8-line addressable latch** (decode `data = bit0, select = bits [3:1]`) — line 1 EPROM/RAM map, line 2 write-protect, lines 4/5 per-drive datarate, line 6 static drive/write enable, line 7 FDC result-read strobe (§3). *Residual (still needs the board):* the physical A0–A2 ordering and which board signal each line drives.
+- **Parallel I/O = a single µPD71055 PPI (U69)** — now **board-confirmed**: register-select `A1/A0` = Z80 `A3/A2`, so its four registers are ports `0x90`/`0x94`/`0x98`/`0x9C` (PA/PB/PC/control), chip-select off the `0x90` I/O decode. PA = host bulk-image byte, PB = `status_in`, PC = the control lines. The `0x40–0x70` drive latches are separate 74HCT373s. (§2, §3)
+- **0x9C is the PPI (U69) control register — RESOLVED by board probe.** It is *not* a 74259; the "addressable latch" is **8255 Bit-Set/Reset of Port C**. All 8 lines mapped: PC0/1 keypad columns (→K52 ✅), PC2 write-protect, PC3 bulk-transfer direction (→U74 74ALS245 DIR ✅), PC4/5 datarate A/B, PC6 drive/write enable, PC7 FDC result strobe (§3). The **EPROM/RAM map is not a 0x9C bit** — it is a **U68 PAL** function (U68 drives EPROM `/CE`; U57 `/OE`=GND; both probed), flipping on the first `A15=1` fetch. Newly-catalogued chip: **U74** (host bulk-image Port-A transceiver). *Residual:* board-confirm the FDC/drive-side pins of PC2/PC4–PC7 (firm from firmware).
 - **0xB0** is a flat 8-bit DRAM bank latch — no drive-select field; drive UNIT/HEAD select is in the FDC `HD/US` command byte. (§5; internals §B)
 - **0xE8 / 0x55** is an LCD presence/health self-test with a headless fallback, not a board-ID strap.
 - **Host opcode table** fully mapped: control opcodes 0x09–0x0F plus a duplication-run fall-through (0x07 = BP, 0x01–0x06/0x08 = FDD). (internals §D)
