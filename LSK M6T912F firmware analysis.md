@@ -87,7 +87,7 @@ in RAM but is never used.) The disassembly is trimmed to 0x0000–0x52FF.
 |---|---|---|
 | `0x52F0` | `0xC7` | **Firmware self-check reference.** Verified: `sum8(0x0100..0x52EF) = 0xC7`. Boot compares this at `0x0128`; mismatch → "CODE TRANSFER ERROR". (The computed sum is stored at `0x52EF`, which is `0x00` in the static image.) |
 | `0x52F1` | `0xAA` | Validity magic marker. |
-| `0x52FE/0x52FF` | `0x2198` (LE) | 16-bit value at end-of-content, **not referenced by any instruction**. An exhaustive search — 10 CRC-16 variants (CCITT/XMODEM/KERMIT/ARC/MODBUS/X25/GENIBUS…), additive/word/ones-complement sums, Fletcher-16, Adler-16, complement-to-zero, byte-swapped — over 8 candidate ranges produced **no match**. So it's an **external programmer / build checksum or image signature** applied by the EPROM tooling (proprietary algorithm), not verified by the firmware itself. |
+| `0x52FE/0x52FF` | `0x2198` (LE) | Unknown 16-bit word at the last word of used content, **not referenced by any instruction** — an unknown checksum or marker. |
 
 ### Is 0x0000–0x7FFF RAM, not the EPROM?
 
