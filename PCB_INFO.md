@@ -23,10 +23,10 @@ TERRA computer systems (c) 1993
 - K2 Floppy Connector U?
 - K3 Floppy Connector U1/U2?
 - K4 
-- K51 LCD
-- K52 4 buttons and beeper
+- K51 LCD (→ U87 data buffer)
+- K52 4 buttons and beeper (→ U69 µPD71055 PPI)
 - K53 
-- K54 1:/2:/3:SIO DCDB/4:SIO DCDA/5:SIO RTSB/6:SIO RTSA/7:SIO CTSB/8:SIO CTSA/9:R2in/10:R1in/11:T1out/12:T2out/13:B53/14:B54
+- K54 serial (→ U71 Z80 SIO via U101 TC232) 1:/2:/3:SIO DCDB/4:SIO DCDA/5:SIO RTSB/6:SIO RTSA/7:SIO CTSB/8:SIO CTSA/9:R2in/10:R1in/11:T1out/12:T2out/13:B53/14:B54
 - MB1 GND
 - MB2 U1 /RDD Raw serial bit stream from disk drive
 - MB3 GND

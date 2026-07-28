@@ -133,7 +133,8 @@ The flat image address is `{0xB0 bank latch[7:0], Z80 A14:0}`: the **top bank bi
 `/WE` are shared; the 9th (parity) bit is **generated but not checked**.
 
 Standard 30-pin SIMM edge pinout the controller interfaces to (address `A0–A11`, data `DQ0–7` + parity,
-`/RAS`, `/CAS`, `/WE`, `/CASP`):
+`/RAS`, `/CAS`, `/WE`, `/CASP`) — reference module in
+[`datasheets/4mx9-simm-schematic.png`](datasheets/4mx9-simm-schematic.png):
 
 | Pin | Sig | Pin | Sig | Pin | Sig |
 |---|---|---|---|---|---|
