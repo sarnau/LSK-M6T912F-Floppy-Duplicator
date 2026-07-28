@@ -70,7 +70,10 @@ The two windows are the **same 0xB0-banked DRAM array**. At boot the bank latch 
 and the EPROM is `LDIR`-copied into that bank's window (`0x8022`); the **U68 low-memory arbiter** then
 flips its ROM→RAM shadow (on the first upper-memory fetch — `JP 0x8022`), replacing the EPROM at
 `0x0000–0x7FFF` with bank `0xFF` so the running code is unaffected when `0xB0` later cycles image banks
-`0x00–0xFE` in the upper window. See "Bank 0xFF is the program mirror" below.
+`0x00–0xFE` in the upper window. The array is **2× 4 MB SIMMs = 8 MB** (256 × 32 KB banks; parity is
+generated, not checked); with bank `0xFF` reserved for program RAM the image buffer is banks
+`0x00–0xFE` (≈ 7.97 MB — several full disk images), and boot sizes the installed DRAM via the
+`Test dram: N kB` routine (`0x03DD`). See "Bank 0xFF is the program mirror" below.
 
 - **Variables:** `0x3100–0x33FF` main state · `0x4A00–0x4BFF` per-drive FDC + keypad state blocks ·
   `0x5200–0x52FF` system & config (I/O-mode vectors `0x52C9/CB/CD`, checksum bytes at end).
@@ -88,31 +91,6 @@ in RAM but is never used.) The disassembly is trimmed to 0x0000–0x52FF.
 | `0x52F0` | `0xC7` | **Firmware self-check reference.** Verified: `sum8(0x0100..0x52EF) = 0xC7`. Boot compares this at `0x0128`; mismatch → "CODE TRANSFER ERROR". (The computed sum is stored at `0x52EF`, which is `0x00` in the static image.) |
 | `0x52F1` | `0xAA` | Validity magic marker. |
 | `0x52FE/0x52FF` | `0x2198` (LE) | Unknown 16-bit word at the last word of used content, **not referenced by any instruction** — an unknown checksum or marker. |
-
-### Is 0x0000–0x7FFF RAM, not the EPROM?
-
-The physical part is an EPROM, but at runtime that range is answered by **static RAM**. Proofs:
-
-1. **316 store instructions target addresses below 0x8000** — you cannot write an EPROM with
-   `LD (nnnn),A`; the machine's own variables live here.
-2. **Boot checksum stores then reads back:** `LD (0x52EF),A` writes the computed sum into `0x52EF`
-   (which is `0x00` in the static image), then `0x0128` reads it back and compares to reference
-   `0x52F0 = 0xC7`. The store-of-a-computed-value-then-readback only works in RAM.
-3. **"Variable" regions are zero-filled holes** in the image — initialized-data + BSS laid into a
-   RAM image (e.g. `0x4A50–0x4AB0` is all `00`).
-4. **The boot ceremony is pointless otherwise** — it `LDIR`s the image up to RAM and bank-switches
-   before `JP 0x0100`; in-place EPROM would just jump at reset.
-5. **"Code loading" requires it** — field firmware updates can only replace the running image if it
-   sits in writable RAM, guarded by that checksum.
-
-The image DRAM and the program RAM are the **same banked array** — **2× 4 MB 30-pin SIMMs = 8 MB**
-(parity-type SIMMs, but the parity bit is *simulated*/generated rather than checked). Port **`0xB0`**
-selects which 32 KB bank appears in the 0x8000–0xFFFF window (8 MB = **256 banks**). One bank is
-reserved: **bank `0xFF` is the program RAM**, so the image buffer is banks **`0x00–0xFE`** (255
-banks ≈ 7.97 MB) — enough to cache several full disk images (≈ 5× 1.44 MB). The `Test dram: N kB`
-routine (`0x03DD`) sizes the installed DRAM at boot by walking banks — `OUT (0xB0),A; LD (0x8000),A;
-CP (0x8000)` — and counting those that read back. (Port `0x9C`, written `0x92` at boot, is the
-PPI U69 control register — an 8255 mode-set, not part of the map; see below.)
 
 ### Bank 0xFF is the program mirror
 

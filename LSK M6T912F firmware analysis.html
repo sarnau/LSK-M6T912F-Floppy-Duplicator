@@ -248,7 +248,10 @@
       DRAM array</b>: the lower half is <b>DRAM bank 0xFF</b> — loaded with the EPROM mirror at boot and
       then mapped there by the <b>U68 PAL</b> (a ROM→RAM shadow that flips on the first upper-memory
       fetch), holding the running program; the upper half is a
-      window onto image banks 0x00–0xFE that buffers the disk image.</p>
+      window onto image banks 0x00–0xFE that buffers the disk image. The array is <b>2× 4 MB SIMMs = 8 MB</b>
+      (256 × 32 KB banks; parity is generated, not checked); with bank 0xFF reserved for program RAM the
+      image buffer is banks <b>0x00–0xFE</b> (≈ 7.97 MB — several full disk images), and boot sizes the
+      installed DRAM via the <code>Test dram: N kB</code> routine (<code>0x03DD</code>).</p>
 
     <div class="memmap">
       <div class="memruler"><span>0x0000</span><span>0x8000</span><span>0xFFFF</span></div>
@@ -276,23 +279,6 @@
         </tbody>
       </table>
     </div>
-
-    <h3>Is 0x0000–0x7FFF really RAM, not the EPROM?</h3>
-    <p>Yes — the physical part is an EPROM, but at runtime that address range is answered by static
-      RAM. Five independent proofs:</p>
-    <ul class="clean">
-      <li><b>316 store instructions target addresses below 0x8000.</b> You cannot write an EPROM with <code>LD (nnnn),A</code>; the machine's own variables live here.</li>
-      <li><b>The boot checksum stores then reads back.</b> <code>LD (0x52EF),A</code> writes the computed sum; <code>0x0128</code> reads it back and compares to reference byte <code>0x52F0 = 0xC7</code>. Storing a computed value and reading it back only works in RAM.</li>
-      <li><b>The &ldquo;variable&rdquo; regions are zero-filled holes</b> in the image — classic initialized-data + BSS laid into a RAM image (e.g. 0x4A50–0x4AB0 is all <code>00</code>).</li>
-      <li><b>The boot ceremony is pointless otherwise:</b> it <code>LDIR</code>s the image up to RAM and bank-switches before <code>JP 0x0100</code>. In-place EPROM execution would just jump at reset.</li>
-      <li><b>&ldquo;Code loading&rdquo; requires it:</b> field firmware updates over serial can only replace the running image if it sits in writable RAM, guarded by that checksum.</li>
-    </ul>
-    <p>It's the same idea as a PC BIOS shadowing ROM into RAM — except here it's mandatory, not just for speed. The image DRAM and the program RAM are the <b>same banked array</b> — <b>2× 4 MB 30-pin SIMMs = 8 MB</b> (parity-type, but the parity bit is
-<em>simulated</em>/generated rather than checked) — holding the source disk image so a master is read once and
-written to every target. Port <code>0xB0</code> selects which 32 KB bank appears in the 0x8000–0xFFFF window
-(8 MB = <b>256 banks</b>). One bank is reserved: <b>bank 0xFF is the program RAM</b>, so the image buffer is
-banks <b>0x00–0xFE</b> (255 banks ≈ 7.97 MB, enough to cache ≈5× 1.44 MB images). The <code>Test dram: N kB</code> routine
-sizes the installed DRAM at boot by walking banks — <code>OUT (0xB0),A; LD (0x8000),A; CP (0x8000)</code> — and counting those that read back.</p>
 
     <h3>Bank 0xFF is the program mirror</h3>
     <p>The &ldquo;static RAM&rdquo; at 0x0000–0x7FFF is not a separate chip — it is <b>DRAM bank 0xFF</b>,
