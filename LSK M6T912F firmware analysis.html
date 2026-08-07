@@ -218,7 +218,7 @@
           <tr><td>DMA</td><td>U7</td><td>NEC µPD8237A (8237)</td><td class="p">80–8F</td><td>4 channels stream sector data to the FDCs (one per controller)</td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/NEC D8237A DMA Controller.pdf</code></td></tr>
           <tr><td>Timer</td><td>U70</td><td>NEC µPD8253C-2 PIT</td><td class="p">A0–AC</td><td>Baud clock + interval measurement</td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF</code></td></tr>
           <tr><td>Serial</td><td>U71</td><td><b>Zilog Z80 SIO/0</b> (Z0844006PSC)</td><td class="p">D0–DC</td><td>Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253</td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/Zilog Z0844006PSC SIO.pdf</code> · <code>datasheets/Zilog Z80SIO Technica Manual.pdf</code></td></tr>
-          <tr><td>Parallel I/O</td><td>U69</td><td>NEC µPD71055 PPI</td><td class="p">90/94/98/9C</td><td>PA host bulk data · PB status_in · PC control (0x9C latch: keypad, write-protect, bulk-dir, datarate, enable, FDC strobe)</td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/NEC µPD71055 Parallel Interface Unit.pdf</code></td></tr>
+          <tr><td>Parallel I/O</td><td>U69</td><td>NEC µPD71055 PPI</td><td class="p">90/94/98/9C</td><td>PA host bulk data · PB status_in · PC control (0x9C latch: keypad, write-protect, bulk-dir, datarate, enable, host handshake)</td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/NEC µPD71055 Parallel Interface Unit.pdf</code></td></tr>
           <tr><td>Display</td><td>K51</td><td>HD44780 LCD (2×20)</td><td class="p">E0</td><td>Front-panel character display</td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/Hiatchi HD44780 LCD.pdf</code></td></tr>
           <tr><td>Image DRAM</td><td>U77/U78</td><td>2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB</td><td class="p">bank @ B0</td><td>Banked disk-image buffer — image banks 0x00–0xFE; bank <b>0xFF = program-RAM mirror</b></td><td><span class="chip c-ok">Verified</span></td><td><code>datasheets/AS4C14400 1M×4 RAM.PDF</code></td></tr>
           <tr><td>Line driver</td><td>U101</td><td>Microchip TC232</td><td class="p">—</td><td>RS-232 level shifting</td><td><span class="chip c-info">Reported</span></td><td><code>datasheets/Microchip TC232CPE RS232.PDF</code></td></tr>
@@ -325,7 +325,7 @@
     <h3>0x9C is the µPD71055 PPI (U69) control register <span class="chip c-ok">Probed</span></h3>
     <p>Port <code>0x9C</code> is the control register of the <b>µPD71055 PPI (U69)</b>, driven with 8255
       <b>Bit-Set/Reset</b> commands: each BSR write sets or clears exactly one <b>Port C</b> bit and leaves the
-      rest intact — which is why the <code>0x0E</code>→<code>0x0F</code> FDC strobe never disturbs the
+      rest intact — which is why the <code>0x0E</code>→<code>0x0F</code> PC7 pulse never disturbs the
       datarate/enable lines. Probing confirms U69: register-select
       <code>A1/A0</code> = Z80 <code>A3/A2</code> (so control = <code>0x9C</code>; Port A/B/C =
       <code>0x90</code>/<code>0x94</code>/<code>0x98</code>), chip-select off the <code>0x90</code> I/O decode,
@@ -337,7 +337,7 @@
       <table>
         <thead><tr><th>Port</th><th>Addr</th><th>Dir</th><th>Role</th></tr></thead>
         <tbody>
-          <tr><td class="p">A</td><td class="p">0x90</td><td>in</td><td><b>host bulk-image data</b> — the 8-bit parallel byte from the host, buffered through <b>U74</b> (74ALS245; DIR = PC3). Read only in the bulk-channel loop (<code>0x218D</code>/<code>0x223C</code>), after the Port B ready handshake.</td></tr>
+          <tr><td class="p">A</td><td class="p">0x90</td><td>in</td><td><b>host bulk-image data</b> — the 8-bit parallel byte from the host, buffered through <b>U74</b> (74ALS245; DIR = PC3) out to connector <b>K53</b> (pins 2–9, the switchable external Port-A). Read only in the bulk-channel loop (<code>0x218D</code>/<code>0x223C</code>), after the Port B ready handshake.</td></tr>
           <tr><td class="p">B</td><td class="p">0x94</td><td>in</td><td><b><code>status_in</code></b> — a shared status latch: <b>bits 0–3 = keypad rows</b> (active-low, <code>CPL;AND 0x0F</code> @ 0x4D29), <b>bits 4–5 = FDC interrupt-source flags</b> (<code>AND 0x30</code> @ 0x45E7 — which FDC group IRQ'd), <b>bit 6 = bulk data-ready</b> (<code>BIT 6</code> @ 0x2170). Bit 7 unused.</td></tr>
           <tr><td class="p">C</td><td class="p">0x98 / 0x9C</td><td>out</td><td>keypad <b>column drives</b> PC0/PC1 (R-M-W on the <code>0x98</code> data port: <code>AND 0xFC;OR 0x02</code> / <code>XOR 0x03</code> @ 0x4D10) plus the <b>control lines</b> PC2–PC7 (set via BSR on the <code>0x9C</code> control register, below).</td></tr>
         </tbody>
@@ -357,7 +357,7 @@
           <tr><td class="p">PC4</td><td class="p">13</td><td><b>datarate select, drive A</b></td><td>0x08/0x09, update_ctrl_latch</td></tr>
           <tr><td class="p">PC5</td><td class="p">12</td><td><b>datarate select, drive B</b></td><td>0x0A/0x0B</td></tr>
           <tr><td class="p">PC6</td><td class="p">11</td><td>drive/write bus enable (held 1)</td><td>0x2D @ 0x03C2, never cleared</td></tr>
-          <tr><td class="p">PC7</td><td class="p">10</td><td><b>FDC result-read strobe</b></td><td>0x0E → 0x0F rising edge</td></tr>
+          <tr><td class="p">PC7</td><td class="p">10</td><td><b>host bulk handshake strobe</b> → K53 pin 11 (via U67) ✅</td><td>0x0E/0x0F; bulk_read_byte, fdc_poll_complete</td></tr>
         </tbody>
       </table>
     </div>
@@ -428,7 +428,7 @@
           <tr><td class="p">00/01 · 10/11<br>20/21 · 30/31</td><td>4× FDC37C65C</td><td>MSR (base+0) / Data (base+1)</td><td>765 handshake at <code>0x457F</code> (<code>AND 0xC0;CP 0x80</code>) &amp; <code>0x46F1</code> (RQM/DIO)</td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">40/50/60/70<br>C6</td><td>74HCT373 drive latches</td><td>drive select · motor · side</td><td>reset <code>OUT 0x40/0x60,0x0E</code>; DOR builder <code>0x3CD3</code></td><td><span class="chip c-unc">Uncertain</span></td></tr>
           <tr><td class="p">80–8F</td><td>µPD8237A DMA</td><td>ch0–3 addr/count (80–87), cmd/status 88, mode 8B, mask 8A/8E/8F, clear-ff 8C, mclr 8D</td><td>arm <code>dma_arm_channel</code> 0x4401 (bit7 → ch0/1 @0x441B or ch2/3 @0x4408); reset <code>OUT 0x88,0xA0</code></td><td><span class="chip c-ok">Verified</span></td></tr>
-          <tr><td class="p">90/94/98/9C</td><td><b>PPI U69</b> (µPD71055)</td><td>PA host bulk data (0x90) · PB status_in (0x94) · PC control (0x98 data / 0x9C ctrl-reg BSR): PC0/1 keypad, PC2 write-protect, PC3 bulk-dir (→U74), PC4/5 datarate A/B, PC6 drive enable, PC7 FDC strobe</td><td>register-select = Z80 A3/A2; CS off 0x90 decode (probed)</td><td><span class="chip c-ok">Verified</span></td></tr>
+          <tr><td class="p">90/94/98/9C</td><td><b>PPI U69</b> (µPD71055)</td><td>PA host bulk data (0x90) · PB status_in (0x94) · PC control (0x98 data / 0x9C ctrl-reg BSR): PC0/1 keypad, PC2 write-protect, PC3 bulk-dir (→U74), PC4/5 datarate A/B, PC6 drive enable, PC7 host handshake (→K53)</td><td>register-select = Z80 A3/A2; CS off 0x90 decode (probed)</td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">90/94</td><td>bulk channel (PPI PA/PB)</td><td>image data-in / ready (bit6)</td><td>download path <code>0x216A</code>, <code>0xAA55</code> frame sync; PA buffered via U74</td><td><span class="chip c-info">Reported</span></td></tr>
           <tr><td class="p">94/98</td><td>keypad (PPI PB/PC)</td><td>4 keys via 2×2 matrix</td><td>columns on 0x98 (PC0/1), rows on 0x94; scan <code>0x4D0B</code>, decode <code>0x4590</code></td><td><span class="chip c-ok">Verified</span></td></tr>
           <tr><td class="p">A0/A4/A8</td><td>8253 PIT</td><td>counter 0 / 1 / 2</td><td>ctrl words <code>16/50/90</code> select each counter</td><td><span class="chip c-ok">Verified</span></td></tr>
@@ -1015,7 +1015,7 @@ EA 00 00 FF FF  JMP FFFF:0000  <span class="c">; reboot</span></pre>
       written by any code</b> — static, ROM-initialised — so the geometric→display scale is a firmware
       constant, <em>not</em> a value embedded in the captured disk. The capture reuses the <b>normal FDC
       read path</b>; the <code>0x9C</code> <code>0x0E→0x0F</code> strobe seen during it is just
-      <code>fdc_poll_complete</code>'s result-read pulse (PC7 of the PPI Port C — see §3).</p>
+      <code>fdc_poll_complete</code> pulsing PC7 (the host-handshake line — see §3).</p>
 
     <h4>Supported drive models &amp; which tracks are measured</h4>
     <p>HRD alignment is only supported on <b>three drive models</b>, and the model isn't chosen from a

@@ -73,7 +73,7 @@ TERRA computer systems (c) 1993
 - U66: 74HCT373N — Octal transparent D-latch, 3-state
 - U67: SN74HCT125N — Quad 3-state bus buffer
 - U68: PALCE20V8H-25PC/4 — DRAM controller (RAS/CAS/mux timing) + low-memory arbiter: drives EPROM `/CE` (pin 20 → U57 pin 20) and holds the ROM→RAM shadow state (inputs: /MREQ pin 3, A15 pin 9, /RFSH pin 2)
-- U69: NEC µPD71055 Parallel Interface Unit — front-panel + control PPI. PA=host bulk-image byte (0x90), PB=status_in (0x94), PC=control outputs (0x98 data / 0x9C ctrl-reg BSR): PC0/1 keypad+beeper, PC2 write-protect, PC3 bulk-xfer dir (→U74), PC4/5 datarate A/B, PC6 drive/write enable, PC7 FDC result strobe. Selected by Z80 A3/A2
+- U69: NEC µPD71055 Parallel Interface Unit — front-panel + control PPI. PA=host bulk-image byte (0x90), PB=status_in (0x94), PC=control outputs (0x98 data / 0x9C ctrl-reg BSR): PC0/1 keypad columns, PC2 write-protect, PC3 bulk-xfer dir (→U74), PC4/5 datarate A/B, PC6 drive/write enable, PC7 host handshake (→K53 pin 11 via U67). Selected by Z80 A3/A2
 - U70: NEC D8253C Programmable Interval Timer — baud clock + spindle/HRD timing
 - U71: Z80 SIO/0 — dual serial: autoloader + host
 - U72: CD74HCT02E — Quad 2-input NOR gate

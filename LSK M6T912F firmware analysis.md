@@ -39,7 +39,7 @@ Origin markers in the strings — `Adresa =` (Czech/Slovak/Croatian "address"), 
 | DMA | U7 | NEC µPD8237A (8237) | 80–8F | 4 channels stream sector data to the FDCs (one per controller) | [V] | `datasheets/NEC D8237A DMA Controller.pdf` |
 | Timer | U70 | NEC µPD8253C-2 PIT | A0–AC | Baud clock + interval measurement | [V] | `datasheets/NEC D8253C PROGRAMMABLE INTERVAL TIMER.PDF` |
 | Serial | U71 | **Zilog Z80 SIO/0** (Z0844006PSC) | D0–DC | Dual channel — A = autoloader (D0/D4), B = host (D8/DC); external baud clock from the 8253 | [V] | `datasheets/Zilog Z0844006PSC SIO.pdf` · `datasheets/Zilog Z80SIO Technica Manual.pdf` |
-| Parallel I/O | U69 | NEC µPD71055 PPI | 90/94/98/9C | PA host bulk data · PB status_in · PC control (0x9C latch: keypad, write-protect, bulk-dir, datarate, enable, FDC strobe) | [V] | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
+| Parallel I/O | U69 | NEC µPD71055 PPI | 90/94/98/9C | PA host bulk data · PB status_in · PC control (0x9C latch: keypad, write-protect, bulk-dir, datarate, enable, host handshake) | [V] | `datasheets/NEC µPD71055 Parallel Interface Unit.pdf` |
 | Display | K51 | HD44780 LCD (2×20) — module via connector K51 | E0/E8 | Front-panel character display | [V] | `datasheets/Hiatchi HD44780 LCD.pdf` |
 | Image DRAM | U77/U78 | 2× 4 MB 30-pin SIMM (AS4C14400 1M×4) = 8 MB | bank @ B0 | Banked disk-image buffer — image banks `0x00–0xFE`; **bank `0xFF` = program-RAM mirror** (see §3) | [V] | `datasheets/AS4C14400 1M×4 RAM.PDF` |
 | Line driver | U101 | Microchip TC232 | — | RS-232 level shifting | [R] | `datasheets/Microchip TC232CPE RS232.PDF` |
@@ -145,7 +145,7 @@ the PPI mode-set (below), unrelated to the map.
 
 Port `0x9C` is the control register of the **µPD71055 PPI (U69)**, driven with 8255 **Bit-Set/Reset**
 commands: each BSR write sets or clears exactly one **Port C** bit and leaves the rest intact — which
-is why the `0x0E`→`0x0F` FDC strobe never disturbs the datarate/enable lines. Probing confirms U69:
+is why the `0x0E`→`0x0F` PC7 pulse never disturbs the datarate/enable lines. Probing confirms U69:
 register-select `A1/A0` = Z80 `A3/A2` (so control = `0x9C`; Port A/B/C = `0x90`/`0x94`/`0x98`),
 chip-select off the `0x90` I/O decode, `/WR` gated through the U72 NOR cluster.
 
@@ -154,7 +154,7 @@ The boot `0x92` (bit 7 = 1) is not BSR but the 8255 **mode-set** that configures
 
 | Port | Addr | Dir | Role |
 |---|---|---|---|
-| **A** | `0x90` | in | **host bulk-image data** — the 8-bit parallel byte from the host, buffered through **U74** (74ALS245; DIR = PC3). Read only in the bulk-channel loop (`0x218D`/`0x223C`), after the Port B ready handshake. |
+| **A** | `0x90` | in | **host bulk-image data** — the 8-bit parallel byte from the host, buffered through **U74** (74ALS245; DIR = PC3) out to connector **K53** (pins 2–9, the switchable external Port-A). Read only in the bulk-channel loop (`0x218D`/`0x223C`), after the Port B ready handshake. |
 | **B** | `0x94` | in | **`status_in`** — a shared status latch: **bits 0–3 = keypad rows** (active-low, `CPL;AND 0x0F` @ `0x4D29`), **bits 4–5 = FDC interrupt-source flags** (`AND 0x30` @ `0x45E7`, which FDC group IRQ'd), **bit 6 = bulk data-ready** (`BIT 6` @ `0x2170`). Bit 7 unused. |
 | **C** | `0x98` / `0x9C` | out | keypad **column drives** PC0/PC1 (R-M-W on the `0x98` data port: `AND 0xFC;OR 0x02` / `XOR 0x03` @ `0x4D10`) plus the **control lines** PC2–PC7 (set via BSR on the `0x9C` control register, below). |
 
@@ -172,7 +172,7 @@ The BSR control byte written to `0x9C` is `0 x x x [C-bit 2:0] [value]` — exac
 | PC4 | 13 | **datarate select, drive A** | `0x08`/`0x09`, `update_ctrl_latch` |
 | PC5 | 12 | **datarate select, drive B** | `0x0A`/`0x0B` |
 | PC6 | 11 | drive/write bus enable (held 1) | `0x2D` @ `0x03C2`, never cleared |
-| PC7 | 10 | **FDC result-read strobe** | `0x0E`→`0x0F` rising edge |
+| PC7 | 10 | **host bulk handshake strobe** → K53 pin 11 (via U67) ✅ | `0x0E`/`0x0F`; `bulk_read_byte`, `fdc_poll_complete` |
 
 Function derivations (firm unless noted):
 
@@ -231,7 +231,7 @@ of the four FDCs.
 | 00/01 10/11 20/21 30/31 | 4× FDC37C65C | MSR (base+0) / Data (base+1) | 765 handshake `0x457F` (`AND 0xC0;CP 0x80`) & `0x46F1` | [V] |
 | 40/50/60/70 C6 | 74HCT373 drive latches | drive select · motor · side | reset `OUT 0x40/0x60,0x0E`; DOR builder `0x3CD3` | [?] |
 | 80–8F | µPD8237A DMA | ch0–3 addr/count (80–87), cmd/status 88, mode 8B, mask 8A/8E/8F, clear-ff 8C, mclr 8D | arm `dma_arm_channel` 0x4401 (bit7 of selector → ch0/1 @0x441B or ch2/3 @0x4408); reset `OUT 0x88,0xA0` | [V] |
-| 90/94/98/9C | **PPI U69** (µPD71055) | PA=host bulk data (0x90) · PB=status_in (0x94) · PC=control (0x98 data / 0x9C ctrl-reg BSR) | Port C lines: PC0/1 keypad columns, PC2 write-protect, PC3 bulk-dir (→U74), PC4/5 datarate A/B, PC6 drive enable, PC7 FDC strobe | [V] |
+| 90/94/98/9C | **PPI U69** (µPD71055) | PA=host bulk data (0x90) · PB=status_in (0x94) · PC=control (0x98 data / 0x9C ctrl-reg BSR) | Port C lines: PC0/1 keypad columns, PC2 write-protect, PC3 bulk-dir (→U74), PC4/5 datarate A/B, PC6 drive enable, PC7 host handshake (→K53) | [V] |
 | 90/94 | bulk channel (PPI PA/PB) | image data-in / ready (bit6) | download `0x216A`, `0xAA55` frame sync; PA buffered via U74 | [R] |
 | 94/98 | keypad (PPI PB/PC) | 4 keys via 2×2 matrix | columns on `0x98` (PC0/1), rows on `0x94`; scan `0x4D0B`, decode `0x4590` | [V] |
 | A0/A4/A8 | 8253 PIT | counter 0 / 1 / 2 | ctrl words `16/50/90` select each counter | [V] |
@@ -704,8 +704,8 @@ summing to `0xFF`, ×7) and returns its byte offset. The per-head result is the 
 two burst offsets** (`SBC HL,DE`), cancelling common-mode timing and leaving the radial displacement.
 This is repeated **10×** and passed through `hrd_median_filter` (0x3084, bubble-sort + average the
 middle samples) to yield the stored `hrd_hd0`/`hrd_hd1` per head. The capture reuses the **normal FDC
-read path**; the `0x9C` `0x0E→0x0F` strobe seen during it is just `fdc_poll_complete`'s result-read
-pulse (PC7 of the PPI Port C — see §3).
+read path**; the `0x9C` `0x0E→0x0F` strobe seen during it is just `fdc_poll_complete` pulsing PC7 (the
+host-handshake line — see §3).
 
 **Supported drive models & which tracks are measured.** HRD alignment is only supported on **three
 drive models**, and the model isn't chosen from a menu — it is **auto-detected** from the drive's
