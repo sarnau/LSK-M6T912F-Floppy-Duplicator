@@ -1328,7 +1328,7 @@ loc_0A9F:
 0AA1  D3 AC         OUT (0xAC),A  ; pit_ctrl — program PIT control register
 0AA3  3E 00         LD A,0x00  ; counter reload low = 0
 0AA5  D3 A4         OUT (0xA4),A  ; pit_c1 — load PIT counter 1
-0AA7  3E 0E         LD A,0x0E  ; latch select line7=1 (FDC result strobe)
+0AA7  3E 0E         LD A,0x0E  ; 0x0E: BSR clear PC7 low (the host-handshake line, →K53)
 0AA9  D3 9C         OUT (0x9C),A  ; ctrl_latch — write addressable control latch
 0AAB  DD CB 0B 66   BIT 4,(IX+11)  ; test format flag bit4
 0AAF  20 08         JR NZ,loc_0AB9  ; flag set -> dual read path
@@ -1970,7 +1970,7 @@ loc_0F75:
 0F75  C3 15 09      JP loc_0915  ; jump to next-drive handler
 
 loc_0F78:
-0F78  3E 0F         LD A,0x0F  ; ctrl-latch line7 (FDC result strobe) = high
+0F78  3E 0F         LD A,0x0F  ; 0x0F: BSR set PC7 high (the host-handshake line, →K53)
 0F7A  D3 9C         OUT (0x9C),A  ; ctrl_latch — drive the 0x9C addressable control latch
 0F7C  21 69 32      LD HL,cycle_cnt_lo  ; point at cycle_cnt_lo config block
 0F7F  06 04         LD B,0x04  ; transfer 4 bytes
