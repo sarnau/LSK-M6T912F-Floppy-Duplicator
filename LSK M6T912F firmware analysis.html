@@ -330,9 +330,21 @@
       <code>A1/A0</code> = Z80 <code>A3/A2</code> (so control = <code>0x9C</code>; Port A/B/C =
       <code>0x90</code>/<code>0x94</code>/<code>0x98</code>), chip-select off the <code>0x90</code> I/O decode,
       <code>/WR</code> gated through the U72 NOR cluster.</p>
-    <p>The BSR control byte is <code>0 x x x [C-bit 2:0] [value]</code> — exactly the firmware's <b>data = bit 0,
-      select = bits [3:1]</b>. <code>0x92</code> (bit 7 = 1) is not BSR but an 8255 <b>mode-set</b>: PA/PB = input,
-      PC = output, and as a side effect the entire Port C output latch resets to 0. All 8 lines
+    <p>The boot <code>0x92</code> (bit 7 = 1) is not BSR but the 8255 <b>mode-set</b> that configures the three
+      ports — <b>PA = input, PB = input, PC = output</b> — and as a side effect resets the entire Port C output
+      latch to 0:</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Port</th><th>Addr</th><th>Dir</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td class="p">A</td><td class="p">0x90</td><td>in</td><td><b>host bulk-image data</b> — the 8-bit parallel byte from the host, buffered through <b>U74</b> (74ALS245; DIR = PC3). Read only in the bulk-channel loop (<code>0x218D</code>/<code>0x223C</code>), after the Port B ready handshake.</td></tr>
+          <tr><td class="p">B</td><td class="p">0x94</td><td>in</td><td><b><code>status_in</code></b> — a shared status latch: <b>bits 0–3 = keypad rows</b> (active-low, <code>CPL;AND 0x0F</code> @ 0x4D29), <b>bits 4–5 = FDC interrupt-source flags</b> (<code>AND 0x30</code> @ 0x45E7 — which FDC group IRQ'd), <b>bit 6 = bulk data-ready</b> (<code>BIT 6</code> @ 0x2170). Bit 7 unused.</td></tr>
+          <tr><td class="p">C</td><td class="p">0x98 / 0x9C</td><td>out</td><td>keypad <b>column drives</b> PC0/PC1 (R-M-W on the <code>0x98</code> data port: <code>AND 0xFC;OR 0x02</code> / <code>XOR 0x03</code> @ 0x4D10) plus the <b>control lines</b> PC2–PC7 (set via BSR on the <code>0x9C</code> control register, below).</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The BSR control byte written to <code>0x9C</code> is <code>0 x x x [C-bit 2:0] [value]</code> — exactly the
+      firmware's <b>data = bit 0, select = bits [3:1]</b>. <b>Port C — all 8 lines</b>
       (✅ = confirmed by board probe; the rest firm from firmware):</p>
     <div class="scroll">
       <table>

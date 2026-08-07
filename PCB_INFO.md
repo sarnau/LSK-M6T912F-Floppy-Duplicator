@@ -6,9 +6,8 @@ TERRA computer systems (c) 1993
 
 - B5 
 - B53/B55/B54 GND/K54-13/5V/K54-14/GND
-- J1 
-- J2 
-- J3 
+- J1/J3 Optional Jumper: GND <=> K1: Pin 4 <=>  U1_38:/HDL
+- J2 Optional Jumper: U1_39:/RWC/RPM to K1: Pin 2
 - J7/B7 
 - J8/B8 
 - J9/B1 
@@ -25,7 +24,7 @@ TERRA computer systems (c) 1993
 - K4 
 - K51 LCD (→ U87 data buffer)
 - K52 4 buttons and beeper (→ U69 µPD71055 PPI)
-- K53 
+- K53 Switchable alternative to Port-A. Pin 1: n/a, Pin 2-9: Port A, Pin 10/12: n/a, Pin 11:U67 4Y Out => inverted U69 P2_7, Pin 13-14: GND
 - K54 serial (→ U71 Z80 SIO via U101 TC232) 1:/2:/3:SIO DCDB/4:SIO DCDA/5:SIO RTSB/6:SIO RTSA/7:SIO CTSB/8:SIO CTSA/9:R2in/10:R1in/11:T1out/12:T2out/13:B53/14:B54
 - MB1 GND
 - MB2 U1 /RDD Raw serial bit stream from disk drive
@@ -78,7 +77,7 @@ TERRA computer systems (c) 1993
 - U70: NEC D8253C Programmable Interval Timer — baud clock + spindle/HRD timing
 - U71: Z80 SIO/0 — dual serial: autoloader + host
 - U72: CD74HCT02E — Quad 2-input NOR gate
-- U74: SN74ALS245AN — host bulk-image Port-A transceiver: A-side = PPI U69 Port A (PA0 = pin 4), `/OE` (pin 19) = GND (always enabled), DIR (pin 1) = PPI PC3 (bulk transfer direction)
+- U74: SN74ALS245AN — host bulk-image Port-A transceiver: A-side = PPI U69 Port A (PA0 = pin 4), B-side: K53 Pin 2-9, `/OE` (pin 19) = GND (always enabled), DIR (pin 1) = PPI PC3 (bulk transfer direction)
 - U77: SIMMs (with 2xAS4C14400 1M×4 RAM, BP41C1000b-6 Parity Emulation) — 1 MB image-buffer SIMM
 - U78: SIMMs (with 2xAS4C14400 1M×4 RAM, BP41C1000b-6 Parity Emulation) — 1 MB image-buffer SIMM
 - U79: MC74HCT14AN — Hex Schmitt-trigger inverter

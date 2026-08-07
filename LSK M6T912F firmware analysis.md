@@ -149,9 +149,17 @@ is why the `0x0E`→`0x0F` FDC strobe never disturbs the datarate/enable lines. 
 register-select `A1/A0` = Z80 `A3/A2` (so control = `0x9C`; Port A/B/C = `0x90`/`0x94`/`0x98`),
 chip-select off the `0x90` I/O decode, `/WR` gated through the U72 NOR cluster.
 
-The BSR control byte is `0 x x x [C-bit 2:0] [value]` — exactly the firmware's **data = bit 0,
-select = bits [3:1]**. `0x92` (bit 7 = 1) is not BSR but an 8255 **mode-set**: PA/PB = input,
-PC = output, and as a side effect the entire Port C output latch resets to 0.
+The boot `0x92` (bit 7 = 1) is not BSR but the 8255 **mode-set** that configures the three ports —
+**PA = input, PB = input, PC = output** — and as a side effect resets the entire Port C output latch to 0:
+
+| Port | Addr | Dir | Role |
+|---|---|---|---|
+| **A** | `0x90` | in | **host bulk-image data** — the 8-bit parallel byte from the host, buffered through **U74** (74ALS245; DIR = PC3). Read only in the bulk-channel loop (`0x218D`/`0x223C`), after the Port B ready handshake. |
+| **B** | `0x94` | in | **`status_in`** — a shared status latch: **bits 0–3 = keypad rows** (active-low, `CPL;AND 0x0F` @ `0x4D29`), **bits 4–5 = FDC interrupt-source flags** (`AND 0x30` @ `0x45E7`, which FDC group IRQ'd), **bit 6 = bulk data-ready** (`BIT 6` @ `0x2170`). Bit 7 unused. |
+| **C** | `0x98` / `0x9C` | out | keypad **column drives** PC0/PC1 (R-M-W on the `0x98` data port: `AND 0xFC;OR 0x02` / `XOR 0x03` @ `0x4D10`) plus the **control lines** PC2–PC7 (set via BSR on the `0x9C` control register, below). |
+
+The BSR control byte written to `0x9C` is `0 x x x [C-bit 2:0] [value]` — exactly the firmware's
+**data = bit 0, select = bits [3:1]**.
 
 **Port C — all 8 lines** (✅ = confirmed by board probe; the rest firm from firmware):
 
