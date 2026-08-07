@@ -680,7 +680,7 @@ ILINE = {
     0x076D: "was rate select == 1?",
     0x076F: "load ctrl_latch mirror value from E",
     0x0770: "not rate 1, leave bit0 unchanged",
-    0x0772: "rate 1: set bit0 (EPROM/RAM map line)",
+    0x0772: "rate class 1: set bit0 = BSR data '1' for the 0x9C datarate line (PC4/PC5)",
     0x0774: "write to addressable ctrl latch",
     0x0776: "return",
     0x0777: "save BC",

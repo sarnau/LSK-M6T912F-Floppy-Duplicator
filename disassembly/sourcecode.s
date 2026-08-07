@@ -878,7 +878,7 @@ loc_0767:
 076D  FE 01         CP 0x01  ; was rate select == 1?
 076F  7B            LD A,E  ; load ctrl_latch mirror value from E
 0770  20 02         JR NZ,loc_0774  ; not rate 1, leave bit0 unchanged
-0772  F6 01         OR 0x01  ; rate 1: set bit0 (EPROM/RAM map line)
+0772  F6 01         OR 0x01  ; rate class 1: set bit0 = BSR data '1' for the 0x9C datarate line (PC4/PC5)
 
 loc_0774:
 0774  D3 9C         OUT (0x9C),A  ; ctrl_latch — write to addressable ctrl latch

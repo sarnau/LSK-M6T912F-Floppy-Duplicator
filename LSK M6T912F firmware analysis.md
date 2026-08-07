@@ -229,7 +229,7 @@ of the four FDCs.
 | Port(s) | Chip | Register / role | Evidence | Status |
 |---|---|---|---|---|
 | 00/01 10/11 20/21 30/31 | 4× FDC37C65C | MSR (base+0) / Data (base+1) | 765 handshake `0x457F` (`AND 0xC0;CP 0x80`) & `0x46F1` | [V] |
-| 40/50/60/70 C6 | 74HCT373 drive latches | drive select · motor · side | reset `OUT 0x40/0x60,0x0E`; DOR builder `0x3CD3` | [?] |
+| 40/60 · 50/70 | 74HCT373 drive latches (U8/U83/U85) | **40/60** = drive/write **enable** (`0x2D` active / `0x0E` idle; bit0 = enable, fanned to PPI PC6) — `set_drive_cfg` `0x074F`. **50/70** = per-drive **datarate** (loaded from drive-block `+0x16`; bit2 = rate, mirrored to PPI PC4/5) — `update_ctrl_latch` `0x0760` → `0x36FE`. Unit/head select is the FDC `HD/US` command byte, *not* these latches. | traced from firmware; the fixed motor/RWC bits in `0x2D`/`0x0E` and the physical 373↔port map need a probe | [R] |
 | 80–8F | µPD8237A DMA | ch0–3 addr/count (80–87), cmd/status 88, mode 8B, mask 8A/8E/8F, clear-ff 8C, mclr 8D | arm `dma_arm_channel` 0x4401 (bit7 of selector → ch0/1 @0x441B or ch2/3 @0x4408); reset `OUT 0x88,0xA0` | [V] |
 | 90/94/98/9C | **PPI U69** (µPD71055) | PA=host bulk data (0x90) · PB=status_in (0x94) · PC=control (0x98 data / 0x9C ctrl-reg BSR) | Port C lines: PC0/1 keypad columns, PC2 write-protect, PC3 bulk-dir (→U74), PC4/5 datarate A/B, PC6 drive enable, PC7 host handshake (→K53) | [V] |
 | 90/94 | bulk channel (PPI PA/PB) | image data-in / ready (bit6) | download `0x216A`, `0xAA55` frame sync; PA buffered via U74 | [R] |
