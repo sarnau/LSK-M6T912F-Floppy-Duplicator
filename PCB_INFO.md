@@ -41,7 +41,7 @@ TERRA computer systems (c) 1993
 - U5: GAL20V8B 15LP — address-decode PLD (I/O chip-selects)
 - U6: SN74LS38N — Quad 2-input NAND, open-collector
 - U7: NEC D8237A DMA Controller (under sticker) — streams sector data to the FDCs
-- U8: 74HCT373N — Octal transparent D-latch, 3-state
+- U8: 74HCT373N — Octal transparent D-latch, 3-state — candidate drive latch (ports 0x40/0x50/0x60/0x70): 0x40/0x60 = drive/write enable (0x2D active / 0x0E idle, bit0→PPI PC6), 0x50/0x70 = per-drive datarate (bit2→PPI PC4/5). Physical port↔chip mapping (U8/U83/U85) not yet probed
 - U9: MC74HCT04AN — Hex inverter
 - U10: MC74HCT04AN — Hex inverter
 - U11: CD74HCT02E — Quad 2-input NOR gate
@@ -81,9 +81,9 @@ TERRA computer systems (c) 1993
 - U77: SIMMs (with 2xAS4C14400 1M×4 RAM, BP41C1000b-6 Parity Emulation) — 1 MB image-buffer SIMM
 - U78: SIMMs (with 2xAS4C14400 1M×4 RAM, BP41C1000b-6 Parity Emulation) — 1 MB image-buffer SIMM
 - U79: MC74HCT14AN — Hex Schmitt-trigger inverter
-- U83: 74HCT373N — Octal transparent D-latch, 3-state
+- U83: 74HCT373N — Octal transparent D-latch, 3-state — candidate drive latch, ports 0x40/0x50/0x60/0x70 (physical port not yet probed; see U8)
 - U84: CD74HCT02E — Quad 2-input NOR gate
-- U85: 74HCT373N — Octal transparent D-latch, 3-state
+- U85: 74HCT373N — Octal transparent D-latch, 3-state — candidate drive latch, ports 0x40/0x50/0x60/0x70 (physical port not yet probed; see U8)
 - U86: CAT24C02 2-Kb I2C CMOS Serial EEPROM — config + serial-number NVRAM
 - U87: MC74HCT245AN — Octal bus transceiver, 3-state
 - U88: MC74HCT04AN — Hex inverter
